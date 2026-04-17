@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TegakiTrainer 0.1</title>
+  <link href="main.css?20260417-01" rel="stylesheet">
+  <meta name="description" content="TegakiTrainer - 手書き要約筆記練習ツール">
+  <meta property="og:title" content="TegakiTrainer">
+  <meta property="og:description" content="手書き要約筆記練習ツール">
+  <!--
+  <meta property="og:image" content="apple-touch-icon.png">
+  <!-- for apple devices... -- >
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="TegakiTrainer">
+  <!-- end of 'for apple devices' -- >
+  <link rel="icon" href="favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  -->
+</head>
+<body>
+  <div id="app">
+    <div id="tool" class="flex-fixed flex-h-center">
+      <span class="flex-fixed">声 : </span>
+      <select id="voices" class="flex-fixed"></select>
+    </div>
+    <div id="description">
+      「次の例文」ボタンを押すと、ランダムな例文を音声で読み上げます。
+      <br>しばらく後に手書き表記例が下に出ます。
+    </div>
+    <div id="operation" class="flex-fixed flex-h-center">
+      <button id="next">次の例文</button>
+    </div>
+    <div id="answer"></div>
+  </div>
+  <script src="index.js?20260417-01"></script>
+</body>
+</html>
