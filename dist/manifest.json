@@ -1,10 +1,10 @@
 {
-  "name": "TegakiTrainer-v0.1.0",
-  "short_name": "TegakiTrainer",
-  "theme_color": "#000000",
-  "background_color": "#303030",
+  "name": "Tegaki-Trainer-v0.1.0",
+  "short_name": "手書き練習",
+  "theme_color": "#ffffff",
+  "background_color": "#f0f0f0",
   "display": "standalone",
-  "description": "Tool for training note-taking by hand",
+  "description": "手書き要約筆記練習のための例題読み上げツール",
   "scope": "./",
   "start_url": "./index.html",
   "icons": [

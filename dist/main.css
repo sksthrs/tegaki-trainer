@@ -48,6 +48,13 @@ input, button, select, option {
   align-items: stretch;
 }
 
+.flex-v-center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
 .flex-h-center {
   display: flex;
   flex-direction: row;
@@ -78,7 +85,20 @@ input, button, select, option {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 0.5em;
+  gap: 3dvh;
+}
+
+#tool {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  font-size: 24px;
+}
+
+#voices {
+  padding: 8px;
+  max-width: calc(100% - 5em);
 }
 
 #description {
@@ -87,10 +107,47 @@ input, button, select, option {
   line-height: 140%;
 }
 
+#operation {
+  width: 80%;
+  height: 30%;
+}
+
+#next {
+  width: 100%;
+  height: 100%;
+  font-size: min(16dvh, 12dvw);
+  border-radius: 5dvh;
+}
+
 #answer {
   flex-grow: 0;
   background-color: #ddddff;
-  min-height: 1em;
+  min-height: 30dvh;
   width: 80%;
+  padding: 1%;
   text-align: center;
+  font-size: min(8dvh, 8dvw);
+  line-height: 120%;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+
+#answer span {
+  display: inline-block;
+}
+
+.abbr {
+  color: red;
+}
+
+.encircle {
+  border: 2px solid red;
+  border-radius: min(4dvh, 2.5dvw);
+}
+
+.countdown {
+  height: 10dvh;
 }
