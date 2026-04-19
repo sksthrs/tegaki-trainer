@@ -55,9 +55,6 @@ document.addEventListener('DOMContentLoaded', (ev) => {
 
   // ========== ========== 音声合成 ========== ==========
 
-  /** 日本語と判定できる言語タグを小文字にしたもの */
-  const JP_LANGS = ['ja', 'ja-jp', 'ja_jp']; // Chrome(Android)は'ja_JP'
-  
   /** ネット接続が必要な音声につける説明文字列 */
   const SUFFIX_ONLINE = " (要ネット接続)";
 
@@ -95,8 +92,8 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     voices = [];
 
     for (const voice of voicesAll) {
-      logWrite(`voice name:[${voice.name}] lang:[${voice.lang}] localService:[${voice.localService}] default:${voice.default}`);
-      if (JP_LANGS.includes(voice.lang.toLowerCase()) !== true) continue;
+      logWrite(`voice name:[${voice.name}] lang:[${voice.lang}->${voice.lang.toLowerCase()}] localService:[${voice.localService}] default:${voice.default}`);
+      if (voice.lang.includes('ja') !== true) continue;
 
       voices.push(voice);
       const opt = document.createElement('option');
