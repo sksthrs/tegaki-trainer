@@ -117,6 +117,7 @@ input, button, select, option {
   height: 100%;
   font-size: min(16dvh, 12dvw);
   border-radius: 5dvh;
+  cursor: pointer;
 }
 
 #answer {
