@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     logText.textContent = logArray.join('\n');
     logDialog.showModal();
   }
-  
+
   // PWAとしての登録処理
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     voices = [];
 
     for (const voice of voicesAll) {
-      // logWrite(`voice name:[${voice.name}] lang:[${voice.lang}] localService:[${voice.localService}] default:${voice.default}`);
+      logWrite(`voice name:[${voice.name}] lang:[${voice.lang}] localService:[${voice.localService}] default:${voice.default}`);
       if (JP_LANGS.includes(voice.lang.toLowerCase()) !== true) continue;
 
       voices.push(voice);
