@@ -56,8 +56,8 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   // ========== ========== 音声合成 ========== ==========
 
   /** 日本語と判定できる言語タグを小文字にしたもの */
-  const JP_LANGS = ['ja', 'ja-jp'];
-
+  const JP_LANGS = ['ja', 'ja-jp', 'ja_jp']; // Chrome(Android)は'ja_JP'
+  
   /** ネット接続が必要な音声につける説明文字列 */
   const SUFFIX_ONLINE = " (要ネット接続)";
 
