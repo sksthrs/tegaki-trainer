@@ -1,22 +1,33 @@
-// PWAとしての登録処理
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+document.addEventListener('DOMContentLoaded', (ev) => {
+
+  // ========== ========== ログ ========== ==========
+
+  const logArray: string[] = [];
+
+  function logWrite(text: string): void {
+    logArray.push(text);
+    console.log(text);
+  }
+
+  function openLog(): void {
+    logText.textContent = logArray.join('\n');
+    logDialog.showModal();
+  }
+  
+  // PWAとしての登録処理
+  if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
     .then((registration) => {
-      console.log(`[Main] ServiceWorker registration finished. Scope:${registration.scope}`);
+      logWrite(`[Main] ServiceWorker registration finished. Scope:${registration.scope}`);
     })
     .catch((reason) => {
-      console.log(`[Main] ServiceWorker registratio failed. Reason:${reason}`);
+      logWrite(`[Main] ServiceWorker registratio failed. Reason:${reason}`);
     });
-  });
-}
+  }
 
-if (navigator.language != null && navigator.language.length > 0) {
-  document.documentElement.lang = navigator.language;
-}
-
-// アプリケーション
-document.addEventListener('DOMContentLoaded', (ev) => {
+  if (navigator.language != null && navigator.language.length > 0) {
+    document.documentElement.lang = navigator.language;
+  }
 
   /** 設定値を保存する際のキー文字列 */
   const STORAGE_KEY = "TegakiTrainer"
@@ -33,6 +44,14 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   const phraseTokens: PhraseToken[] = [];
 
   let animation: Animation | undefined = undefined;
+
+  const logOpenButton = document.getElementById('log-open') as HTMLButtonElement;
+
+  const logCloseButton = document.getElementById('log-close') as HTMLButtonElement;
+
+  const logDialog = document.getElementById('log-dialog') as HTMLDialogElement;
+
+  const logText = document.getElementById('log-text') as HTMLDivElement;
 
   // ========== ========== 音声合成 ========== ==========
 
@@ -64,7 +83,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   /** ブラウザで使える、日本語・ローカル処理可能な音声をselect要素に詰める */
   function populateVoices(): void {
     const voicesAll = SS.getVoices().sort((a,b) => a.name.localeCompare(b.name));
-    console.log(`Enumerate voices... ${voicesAll?.length ?? "null"} SS:${SS != null}`);
+    logWrite(`Enumerate voices... ${voicesAll?.length ?? "null"} SS:${SS != null}`);
     if (voicesAll == null || voicesAll?.length < 1) {
       return;
     }
@@ -76,7 +95,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     voices = [];
 
     for (const voice of voicesAll) {
-      // console.log(`voice name:[${voice.name}] lang:[${voice.lang}] localService:[${voice.localService}] default:${voice.default}`);
+      // logWrite(`voice name:[${voice.name}] lang:[${voice.lang}] localService:[${voice.localService}] default:${voice.default}`);
       if (JP_LANGS.includes(voice.lang.toLowerCase()) !== true) continue;
 
       voices.push(voice);
@@ -84,7 +103,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
       const name = voice.name + (voice.localService ? "" : SUFFIX_ONLINE);
       opt.textContent = name;
       voiceSelect.appendChild(opt);
-      console.log(`[addvoice] ${name}`);
+      logWrite(`[addvoice] ${name}`);
     }
 
     voiceSelect.selectedIndex = ixCurrent;
@@ -158,8 +177,16 @@ document.addEventListener('DOMContentLoaded', (ev) => {
       // phraseTokens に求めたトークン配列を設定する
       phraseTokens.push(...tokens2);
 
-      console.log(`[nextButton.click] next phrase=${phrase}`);
+      logWrite(`[nextButton.click] next phrase=${phrase}`);
       speak(phrase);
+    });
+
+    logOpenButton.addEventListener('click', _ => {
+      openLog();
+    });
+
+    logCloseButton.addEventListener('click', _ => {
+      logDialog.close();
     });
   }
 
@@ -179,7 +206,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     const displayText = phraseTokens.map(token => token.text).join('');
     const elements = makeDisplayElements(phraseTokens);
     const periodMsec = displayText.length * 750; // 0.75文字/秒（80文字/分）を想定。短いが言い終わってからなのでまあそんなもの。
-    console.log(`[onSpeakStart] displayText=${displayText} delay=${periodMsec}`);
+    logWrite(`[onSpeakStart] displayText=${displayText} delay=${periodMsec}`);
     timerId = setTimeout(
       () => {
         setSpansToAnswer(elements);
@@ -274,7 +301,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   /** 設定を保存する */
   function saveConfig(config: Config): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-    console.log(`saved config : ${JSON.stringify(config)}`);
+    logWrite(`saved config : ${JSON.stringify(config)}`);
   }
 
   /** 設定を取得する */
@@ -283,18 +310,18 @@ document.addEventListener('DOMContentLoaded', (ev) => {
       const text = localStorage.getItem(STORAGE_KEY);
       if (text != null) {
         const obj = JSON.parse(text);
-        console.log(`[loadConfig] loaded config=${JSON.stringify(obj)}`)
+        logWrite(`[loadConfig] loaded config=${JSON.stringify(obj)}`)
         const config = getConfigDefault();
         if (obj?.voice != null && typeof obj?.voice === 'string') {
           config.voice = obj.voice;
         }
-        console.log(`config loaded : ${JSON.stringify(config)}`);
+        logWrite(`config loaded : ${JSON.stringify(config)}`);
         return config;
       }
     } catch(err) {
-      console.log(`error in config-load : ${err}`);
+      logWrite(`error in config-load : ${err}`);
     }
-    console.log('no config');
+    logWrite('no config');
     return getConfigDefault();
   }
 
@@ -394,7 +421,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
 
     const idSeq = generateArithmeticSequence(0, phrases.length);
     const idShuffled = shuffleArray(idSeq);
-    console.log(`[fillQuestionIdsWithRandom] shuffled=${JSON.stringify(idShuffled)}`);
+    logWrite(`[fillQuestionIdsWithRandom] shuffled=${JSON.stringify(idShuffled)}`);
     questionIds.push(...idShuffled);
   }
 

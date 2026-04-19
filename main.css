@@ -151,3 +151,31 @@ input, button, select, option {
 .countdown {
   height: 10dvh;
 }
+
+#log-open {
+  display: block;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  border: none;
+  background-color: white;
+  font-size: 12pt;
+}
+
+#log-content {
+  width: 90dvw;
+  height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+#log-text {
+  flex-grow: 1;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  line-break: anywhere;
+  white-space: break-spaces;
+}
