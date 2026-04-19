@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         clearVoices();
         voices = [];
         for (const voice of voicesAll) {
-            // logWrite(`voice name:[${voice.name}] lang:[${voice.lang}] localService:[${voice.localService}] default:${voice.default}`);
+            logWrite(`voice name:[${voice.name}] lang:[${voice.lang}] localService:[${voice.localService}] default:${voice.default}`);
             if (JP_LANGS.includes(voice.lang.toLowerCase()) !== true)
                 continue;
             voices.push(voice);
