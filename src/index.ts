@@ -111,8 +111,11 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   function speak(phrase: string): void {
     cancelTimer();
 
-    const phraseToSpeak = phrase.endsWith('。') ? phrase.substring(0, phrase.length-1) : phrase;
-    const utterance = new SpeechSynthesisUtterance(phraseToSpeak);
+    let phrase2 = phrase.endsWith('。') ? phrase.substring(0, phrase.length-1) : phrase;
+    for (const speechDictItem of speechDictionary) {
+      phrase2 = phrase2.replaceAll(speechDictItem.source, speechDictItem.replace);
+    }
+    const utterance = new SpeechSynthesisUtterance(phrase2);
     if (voiceCurrent != null) {
       utterance.voice = voiceCurrent;
     }
@@ -502,6 +505,16 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     { source: "磁気誘導ループ", abbr: "ループ", encircle: false, },
   ];
 
+  type SpeechDictionaryItem = {
+    source: string,
+    replace: string,
+  };
+
+  const speechDictionary: SpeechDictionaryItem[] = [
+    {source: "失聴者", replace: "しっちょうしゃ"},
+    {source: "失聴", replace: "しっちょう"},
+  ];
+
   // ========== ========== 出題フレーズそのもの ========== ==========
 
   const phrases = [
@@ -518,7 +531,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     "昨日はボランティア集会に参加した。",
     "このホールにはヒアリングループが設置されている。",
     "中途失聴者も、以前は健聴者だった。",
-    "伝音難聴には補聴器が有効。",
+    "伝音性難聴には補聴器が有効。",
     "難聴者協会の会員の多くは感音難聴である。",
     "聴覚障害者向けの福祉制度は少ない。",
     "要約筆記者の養成は県の事業だ。",
