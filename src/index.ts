@@ -167,8 +167,8 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     nextButton.addEventListener('click', _ev => {
       stopAllSounds();
 
-      const phrase = getNextQuestion();
-      const tokens1 = divideToken([{text: phrase, isAbbr: false, encircle: false}]);
+      const [phraseToShow, phraseToPronounce, phraseOriginal] = getNextQuestion();
+      const tokens1 = divideToken([{text: phraseToShow, isAbbr: false, encircle: false}]);
       const tokens2 = divideNormalTokens(tokens1);
 
       // phraseTokens を空にする
@@ -176,8 +176,8 @@ document.addEventListener('DOMContentLoaded', (ev) => {
       // phraseTokens に求めたトークン配列を設定する
       phraseTokens.push(...tokens2);
 
-      logWrite(`[nextButton.click] next phrase=${phrase}`);
-      speak(phrase);
+      logWrite(`[nextButton.click] next phrase=${phraseOriginal} (show:${phraseToShow} , pronounce:${phraseToPronounce})`);
+      speak(phraseToPronounce);
     });
 
     logOpenButton.addEventListener('click', _ => {
@@ -463,10 +463,16 @@ document.addEventListener('DOMContentLoaded', (ev) => {
    */
   const questionIds: number[] = [];
 
+  /** ルビ抽出用の正規表現 */
+  const RE_RUBY = /｜([^《]+)《([^》]+)》/g;
+
   /**
-   * 次の問題を取得する。
+   * 次の問題の表示用文字列と発音用文字列と元文字列を取得する。
+   * 日本語は同音異義語が多いため、問題文にルビを指定できるようにしている。
+   * 形式はカクヨムのものを基準にさらに限定して、"｜表示文字列《よみがな》" とした。
+   * @returns 表示用文字列、発音用文字列、元文字列のタプル
    */
-  function getNextQuestion(): string {
+  function getNextQuestion(): [string, string, string] {
     if (questionIds.length < 1) {
       fillQuestionIdsRandomly();
     }
@@ -475,7 +481,35 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     if (nextPhrase == null) {
       throw new Error('(impossible case) questionId is null!');
     }
-    return nextPhrase;
+
+    // 読み仮名チェック
+    const matches = [...nextPhrase.matchAll(RE_RUBY)];
+
+    // 読み仮名表記を含まない場合は元の文字列が表記用かつ発音用になる
+    if (matches.length < 1) {
+      return [nextPhrase, nextPhrase, nextPhrase];
+    }
+
+    // 読み仮名表記を含む場合はそれぞれを構築する
+    let phraseToShow = '';
+    let phraseToPronounce = '';
+    let ixStart = 0;
+    try {
+      for (const match of matches) {
+        if (match.length !== 3) throw new Error(`エラー："${nextPhrase}"のindex${match.index}のmatchの長さが3ではなく${match.length}`);
+        const preMatch = nextPhrase.substring(ixStart, match.index);
+        phraseToShow += preMatch + match[1];
+        phraseToPronounce += preMatch + match[2];
+        ixStart = match.index + match[0].length;
+      }
+      const post = nextPhrase.substring(ixStart);
+      phraseToShow += post;
+      phraseToPronounce += post;
+    } catch(err) {
+      return [(err as Error)?.message ?? nextPhrase, "エラーです", nextPhrase];
+    }
+
+    return [phraseToShow, phraseToPronounce, nextPhrase];
   }
 
   function fillQuestionIdsRandomly(): void {
@@ -585,7 +619,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     { source: "補聴器", abbr: "ホ", encircle: true, },
     { source: "要約筆記", abbr: "ヨ", encircle: true, },
     { source: "ろうあ", abbr: "ろ", encircle: true, },
-    { source: "FAX", abbr: "F", encircle: true, },
+    { source: "FAX", abbr: "Ｆ", encircle: true, },
     { source: "手話", abbr: "手", encircle: true, },
     { source: "コミュニケーション", abbr: "コミ", encircle: false, },
     { source: "中途失聴", abbr: "中失", encircle: false, },
@@ -609,24 +643,69 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   // ========== ========== 出題フレーズそのもの ========== ==========
 
   const phrases = [
-    "難聴者には正面から話す。",
-    "聴覚障害の原因は必ずしも明らかではない。",
+    "難聴者には正面から話しかける。",
+    "聴覚障害の原因はさまざま。",
     "連絡先にはFAXも明記する。",
     "聴覚障害はコミュニケーション障害です。",
-    "講演会に手話と要約筆記をつける。",
+    "講演会に手話通訳と要約筆記をつける。",
     "健聴者への啓発が必要だ。",
     "右耳に補聴器をつけている。",
     "市役所の福祉課で相談する。",
-    "ろうあと難聴の違いについて。",
+    "「ろうあ」は以前、欠格条項だった。",
     "私は中途失聴者です。",
+    "中途失聴とは、難聴者運動でできた言葉。",
+    "ろうあ者というアイデンティティー。",
     "昨日はボランティア集会に参加した。",
-    "このホールにはヒアリングループが設置されている。",
-    "中途失聴者も、以前は健聴者だった。",
-    "伝音性難聴には補聴器が有効。",
-    "難聴者協会の会員の多くは感音難聴である。",
+    "このホールにはヒアリングループがある。",
+    "中途失聴者は以前は健聴者だった。",
+    "伝音難聴には補聴器が有効。",
+    "難聴者協会の会員の多くは感音難聴だ。",
     "聴覚障害者向けの福祉制度は少ない。",
     "要約筆記者の養成は県の事業だ。",
     "補聴器はフィッティングが大事。",
-    "ろうあ者で聴覚障害１級を持つ人がいる。",
+    "補聴器と人工内耳の違いは何か。",
+    "人工内耳をしても、障害者手帳の等級は変わらない。",
+    "補聴器も人工内耳も、お手入れは大事。",
+    "福祉でいう聴覚障害者用 通信装置は、FAXのこと。",
+    "ろうあ者で１級の障害者手帳を持つ人がいる。",
+    "補聴器をFAXで注文する。",
+    "ろうあは、聴覚と言語の二重障害だとされる。",
+    "タイループとは、個人用のヒアリングループ。",
+    "ボランティアとは、自発的という意味。",
+    "認定補聴器専門店で補聴器を買う。",
+    "要約筆記の体験講座があります。",
+    "手書き要約筆記者は対人支援の要です。",
+    "パソコン要約筆記には、いすと机が必要。",
+    "今日の手話教室は福祉センターで行う。",
+    "要約筆記はコミュニケーション支援です。",
+    "福祉の対象は障害者だけではない。",
+    "ろうあ者同士はコミュニケーションに困らない。",
+    "手話は大事なコミュニケーション手段。",
+    "手話サークルで、ろうあ者と出会う。",
+    "難聴者からFAXが届いた。",
+    "コミュニケーションが不足している。",
+    "難聴は「ほほえみの障害」ともいわれる。",
+    "福祉関係のボランティアに応募する。",
+    "若い聴覚障害者の多くは、もうFAXを持っていない。",
+    "中途失聴なので手話は分かりません。",
+    "難聴者向けの手話教室は木曜日です。",
+    "聴覚障害者支援センターは津市にある。",
+    "テレビの手話講座を見る。",
+    "「週刊手話ニュース」をご存じですか？",
+    "ろうあ連盟が手話の辞典を出した。",
+    "今年の全難聴の大会は、京都である。",
+    "全難聴の「難聴者の｜明日《あす》」は｜年《ねん》４回の発行。",
+    "難聴者向けの読話教室がほしい。",
+    "要約筆記者の派遣は市町村の必須事業。",
+    "耳マークを福祉課に置いてほしい。",
+    "全難聴も、字幕放送を要望してきた。",
+    "手話と字幕の番組「目で聴くテレビ」をご存じ？",
+    "アイドラゴンは、聴覚障害者用 情報受信装置だ。",
+    "2025年度に「手話リンク」の提供が始まった。",
+    "障害者手帳がなくても電話リレーサービスは使える。",
+    "ヨメテルは、発話ができる聴覚障害者が対象。",
+    "中途失聴者や難聴者にも手話を使う人はいる。",
+    "昔、字幕放送デコーダーを福祉でもらった。",
+    "津波フラッグは、聴覚障害者にも分かりやすい。",
   ] as const;
 });
