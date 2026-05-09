@@ -537,6 +537,8 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   const speechDictionary: SpeechDictionaryItem[] = [
     {source: "失聴者", replace: "しっちょうしゃ"},
     {source: "失聴", replace: "しっちょう"},
+    {source: "健聴者", replace: "けんちょうしゃ"},
+    {source: "健聴", replace: "けんちょう"},
   ];
 
   // ========== ========== 出題フレーズそのもの ========== ==========
