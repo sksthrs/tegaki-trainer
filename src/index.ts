@@ -165,6 +165,8 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     });
 
     nextButton.addEventListener('click', _ev => {
+      stopAllSounds();
+
       const phrase = getNextQuestion();
       const tokens1 = divideToken([{text: phrase, isAbbr: false, encircle: false}]);
       const tokens2 = divideNormalTokens(tokens1);
@@ -218,6 +220,9 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   function onSpeakEnd(): void {
     // 見た目を変化させる。また次ボタンは操作可能とする。
     nextButton.disabled = false;
+
+    // カウントダウン中のサウンドを再生
+    playCounting();
   }
 
   function makeCountdownAnimation(periodMsec: number): void {
@@ -239,6 +244,9 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     animation.addEventListener('finish', _ev => {
       el.remove();
       animation = undefined;
+
+      // カウントダウン完了サウンドを流す
+      playUp();
     });
   }
 
@@ -376,7 +384,64 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     return [...Array(count)].map((_,ix) => ix*delta + start);
   }
 
+  // ========== ========== サウンド処理 ========== ==========
+
+  /** ツール内で使うサウンド一覧 */
+  const _SOUNDS = {
+    /** カウントダウン中のサウンド */
+    counting: new Audio('./sounds/counting.mp3'),
+    /** カウントダウン完了時サウンド */
+    up: new Audio('./sounds/up.mp3'),
+  };
+  /** サウンド音量（とりあえず固定値） */
+  const _SOUND_VOLUME = 10; // [%]
+
+  /** サウンド初期化 */
+  function initializeSounds(): void {
+    // 音量初期化
+    for (const sound of Object.values(_SOUNDS)) {
+      sound.load();
+      sound.volume = Math.max(1.0, Math.min(0.0, _SOUND_VOLUME / 100));
+    }
+
+    // カウントダウン中のサウンドはループさせる（微妙に
+    _SOUNDS.counting.loop = true;
+  }
+
+  /** カウントダウン中サウンドの再生を開始する */
+  function playCounting(): void {
+    _SOUNDS.counting.currentTime = 0;
+    _SOUNDS.counting.play();
+  }
+
+  /** カウントダウン中サウンドの再生を停止する */
+  function stopPlayCounting(): void {
+    _SOUNDS.counting.pause();
+  }
+
+  /** カウントダウン完了時サウンドの再生を開始する */
+  function playUp(): void {
+    stopPlayCounting();
+    _SOUNDS.up.currentTime = 0;
+    _SOUNDS.up.play();
+  }
+
+  /** カウントダウン完了時サウンドの再生を停止する */
+  function stopPlayUp(): void {
+    _SOUNDS.up.pause();
+  }
+
+  /** 全てのサウンドを停止する */
+  function stopAllSounds(): void {
+    for (const sound of Object.values(_SOUNDS)) {
+      sound.pause();
+    }
+  }
+
   // ========== ========== 初期処理 ========== ==========
+
+  // サウンド初期化
+  initializeSounds();
 
   // 音声一覧取得以外のイベントハンドラを設定
   setEventHandlers();
