@@ -1,6 +1,6 @@
 {
   "name": "tegaki-trainer",
-  "version": "0.5",
+  "version": "0.5.1",
   "main": "index.html",
   "scripts": {
     "dev": "tsc && http-server",

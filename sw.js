@@ -1,4 +1,4 @@
-const cacheName = 'TegakiTrainer-v0.5'
+const cacheName = 'TegakiTrainer-v0.5.1'
 const cacheUrls = [
   './',
   'index.html',
