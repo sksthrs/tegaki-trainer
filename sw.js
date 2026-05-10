@@ -1,9 +1,11 @@
-const cacheName = 'TegakiTrainer-v0.5.1'
+const cacheName = 'TegakiTrainer-v0.6'
 const cacheUrls = [
   './',
   'index.html',
   'index.js',
   'main.css',
+  'sounds/counting.mp3',
+  'sounds/up.mp3',
   'favicon.ico',
   'icon-192x192.png',
   'icon-512x512.png',

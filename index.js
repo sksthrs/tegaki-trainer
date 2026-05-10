@@ -60,9 +60,6 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         if (voicesAll == null || voicesAll?.length < 1) {
             return;
         }
-        const ixCurrent = voiceSelect.selectedIndex < 0
-            ? 0
-            : voiceSelect.selectedIndex;
         clearVoices();
         voices = [];
         for (const voice of voicesAll) {
@@ -76,9 +73,11 @@ document.addEventListener('DOMContentLoaded', (ev) => {
             voiceSelect.appendChild(opt);
             logWrite(`[addvoice] ${name}`);
         }
-        voiceSelect.selectedIndex = ixCurrent;
-        voiceCurrent = voices[ixCurrent];
-        selectOptionByText(voiceSelect, appConfig.voice ?? "");
+        const ixCurrent = selectOptionByText(voiceSelect, appConfig.voice);
+        if (ixCurrent >= 0) {
+            voiceCurrent = voices[ixCurrent];
+        }
+        logWrite(`[populateVoices] ixCurrent=${ixCurrent} voices=${JSON.stringify(voices.map(v => v.name))} voiceCurrent=${JSON.stringify(voiceCurrent?.name)}`);
     }
     /**
      * 音声に対応するoption要素の文字列から、本来の音声名称を取得する
@@ -106,6 +105,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         if (voiceCurrent != null) {
             utterance.voice = voiceCurrent;
         }
+        logWrite(`[speak] actual speech : ${phrase2} by ${voiceCurrent?.name ?? '(default)'}`);
         utterance.addEventListener('start', _ev => {
             onSpeakStart();
         });
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
             }
         });
         nextButton.addEventListener('click', _ev => {
-            stopAllSounds();
+            prepareSounds();
             const [phraseToShow, phraseToPronounce, phraseOriginal] = getNextQuestion();
             const tokens1 = divideToken([{ text: phraseToShow, isAbbr: false, encircle: false }]);
             const tokens2 = divideNormalTokens(tokens1);
@@ -164,7 +164,8 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         // 書く長さにあわせた時間経過後に表記例を表示する
         const displayText = phraseTokens.map(token => token.text).join('');
         const elements = makeDisplayElements(phraseTokens);
-        const periodMsec = displayText.length * 750; // 0.75文字/秒（80文字/分）を想定。短いが言い終わってからなのでまあそんなもの。
+        const HANDWRITE_RATE = 65 * 1.2; // [文字/分] 基本ペース × 少し早く表示するための補正値
+        const periodMsec = displayText.length * (60 / HANDWRITE_RATE * 1000); // ()内は [文字/分] から [ミリ秒/文字] への変換
         logWrite(`[onSpeakStart] displayText=${displayText} delay=${periodMsec}`);
         timerId = setTimeout(() => {
             setSpansToAnswer(elements);
@@ -276,21 +277,25 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     /**
      * select要素の項目から引数と一致するものを選択状態にする。
      * 引数と一致するものがない場合は何もしない。
-     * @param {HTMLSelectElement} element 対象となるselect要素
-     * @param {string} text 選択する項目の文字列
-     * @returns {number} 選択された項目のインデックス、もしくは-1（一致する項目がなかった場合）
+     * @param element 対象となるselect要素
+     * @param text 選択する項目の文字列
+     * @returns 選択された項目のインデックス、もしくは-1（一致する項目がなかった場合）
      */
     function selectOptionByText(element, text) {
-        if (element.options == null || element.options.length < 1)
+        if (element.options == null
+            || element.options.length < 1
+            || text == null) {
             return -1;
+        }
+        let returnIndex = -1;
         Array.from(element.options).forEach((option, index) => {
-            if (getVoiceNameFromOptionText(option.textContent) === text) {
+            const voiceName = getVoiceNameFromOptionText(option.textContent);
+            if (voiceName === text) {
                 option.selected = true;
-                // element.selectedIndex = index;
-                return index;
+                returnIndex = index;
             }
         });
-        return -1;
+        return returnIndex;
     }
     /**
      * 配列をシャッフルしたものを返す
@@ -321,50 +326,61 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     /** ツール内で使うサウンド一覧 */
     const _SOUNDS = {
         /** カウントダウン中のサウンド */
-        counting: new Audio('./sounds/counting.mp3'),
+        counting: {
+            audio: new Audio('./sounds/counting.mp3'),
+            volume: 20,
+            isLoop: true,
+        },
         /** カウントダウン完了時サウンド */
-        up: new Audio('./sounds/up.mp3'),
+        up: {
+            audio: new Audio('./sounds/up.mp3'),
+            volume: 10,
+            isLoop: false,
+        },
     };
-    /** サウンド音量（とりあえず固定値） */
-    const _SOUND_VOLUME = 10; // [%]
-    /** サウンド初期化 */
-    function initializeSounds() {
+    let initialized = false;
+    /** サウンド準備 */
+    function prepareSounds() {
+        if (initialized)
+            return;
         // 音量初期化
         for (const sound of Object.values(_SOUNDS)) {
-            sound.load();
-            sound.volume = Math.max(1.0, Math.min(0.0, _SOUND_VOLUME / 100));
+            sound.audio.load();
+            sound.audio.loop = sound.isLoop;
+            sound.audio.play();
+            sound.audio.pause();
+            const volume = Math.min(1.0, Math.max(0.0, sound.volume / 100));
+            sound.audio.volume = volume;
+            logWrite(`[prepareSounds] sound[${sound.audio.baseURI}] volume=${volume}`);
         }
-        // カウントダウン中のサウンドはループさせる（微妙に
-        _SOUNDS.counting.loop = true;
+        initialized = true;
     }
     /** カウントダウン中サウンドの再生を開始する */
     function playCounting() {
-        _SOUNDS.counting.currentTime = 0;
-        _SOUNDS.counting.play();
+        _SOUNDS.counting.audio.currentTime = 0;
+        _SOUNDS.counting.audio.play();
     }
     /** カウントダウン中サウンドの再生を停止する */
     function stopPlayCounting() {
-        _SOUNDS.counting.pause();
+        _SOUNDS.counting.audio.pause();
     }
     /** カウントダウン完了時サウンドの再生を開始する */
     function playUp() {
         stopPlayCounting();
-        _SOUNDS.up.currentTime = 0;
-        _SOUNDS.up.play();
+        _SOUNDS.up.audio.currentTime = 0;
+        _SOUNDS.up.audio.play();
     }
     /** カウントダウン完了時サウンドの再生を停止する */
     function stopPlayUp() {
-        _SOUNDS.up.pause();
+        _SOUNDS.up.audio.pause();
     }
     /** 全てのサウンドを停止する */
     function stopAllSounds() {
         for (const sound of Object.values(_SOUNDS)) {
-            sound.pause();
+            sound.audio.pause();
         }
     }
     // ========== ========== 初期処理 ========== ==========
-    // サウンド初期化
-    initializeSounds();
     // 音声一覧取得以外のイベントハンドラを設定
     setEventHandlers();
     // 起動時点で音声が取得できるなら、とりあえずそれを設定する
@@ -551,7 +567,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         "要約筆記者の養成は県の事業だ。",
         "補聴器はフィッティングが大事。",
         "補聴器と人工内耳の違いは何か。",
-        "人工内耳をしても、障害者手帳の等級は変わらない。",
+        "人工内耳になっても聴覚障害の等級は下がらない。",
         "補聴器も人工内耳も、お手入れは大事。",
         "福祉でいう聴覚障害者用 通信装置は、FAXのこと。",
         "ろうあ者で１級の障害者手帳を持つ人がいる。",
@@ -594,6 +610,12 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         "中途失聴者や難聴者にも手話を使う人はいる。",
         "昔、字幕放送デコーダーを福祉でもらった。",
         "津波フラッグは、聴覚障害者にも分かりやすい。",
+        "ヒアリングループがあるので、補聴器をＴかＭＴに切りかえて。",
+        "障害者手帳で、補聴器の助成が受けられる。",
+        "ヒアリングループの音質はモノラルです。",
+        "片耳が健聴でも人工内耳にできることがある。",
+        "聴覚障害がない人を健聴者という。",
+        "目と耳の両方に障害があるのが盲ろう者。",
     ];
 });
 export {};
