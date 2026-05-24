@@ -1,27 +1,12 @@
 document.addEventListener('DOMContentLoaded', (ev) => {
-
-  // ========== ========== ログ ========== ==========
-
-  const logArray: string[] = [];
-
-  function logWrite(text: string): void {
-    logArray.push(text);
-    console.log(text);
-  }
-
-  function openLog(): void {
-    logText.textContent = logArray.join('\n');
-    logDialog.showModal();
-  }
-
   // PWAとしての登録処理
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
     .then((registration) => {
-      logWrite(`[Main] ServiceWorker registration finished. Scope:${registration.scope}`);
+      Log.write(`[Main] ServiceWorker registration finished. Scope:${registration.scope}`);
     })
     .catch((reason) => {
-      logWrite(`[Main] ServiceWorker registratio failed. Reason:${reason}`);
+      Log.write(`[Main] ServiceWorker registratio failed. Reason:${reason}`);
     });
   }
 
@@ -41,17 +26,13 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   /** 表記表示を待機するためのタイマー（正の値の場合のみ有効） */
   let timerId = -1;
 
-  const phraseTokens: PhraseToken[] = [];
-
-  let animation: Animation | undefined = undefined;
+  const phraseTokens: PhraseManager.PhraseToken[] = [];
 
   const logOpenButton = document.getElementById('log-open') as HTMLButtonElement;
 
   const logCloseButton = document.getElementById('log-close') as HTMLButtonElement;
 
-  const logDialog = document.getElementById('log-dialog') as HTMLDialogElement;
-
-  const logText = document.getElementById('log-text') as HTMLDivElement;
+  let animation: Animation | undefined = undefined;
 
   // ========== ========== 音声合成 ========== ==========
 
@@ -70,53 +51,41 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   let voiceCurrent:SpeechSynthesisVoice | undefined = undefined;
 
   /** 音声一覧を示すselect要素を空にする */
-  function clearVoices(): void {
+  function clearVoices(selectElement: HTMLSelectElement): void {
     voices = []
-    for (const opt of voiceSelect.options) {
+    for (const opt of selectElement.options) {
       opt.remove()
     }
   }
 
   /** ブラウザで使える、日本語・ローカル処理可能な音声をselect要素に詰める */
-  function populateVoices(): void {
+  function populateVoices(selectElement: HTMLSelectElement): void {
     const voicesAll = SS.getVoices().sort((a,b) => a.name.localeCompare(b.name));
-    logWrite(`Enumerate voices... ${voicesAll?.length ?? "null"} SS:${SS != null}`);
+    Log.write(`Enumerate voices... ${voicesAll?.length ?? "null"} SS:${SS != null}`);
     if (voicesAll == null || voicesAll?.length < 1) {
       return;
     }
 
-    clearVoices()
+    clearVoices(selectElement)
     voices = [];
 
     for (const voice of voicesAll) {
-      logWrite(`voice name:[${voice.name}] lang:[${voice.lang}->${voice.lang.toLowerCase()}] localService:[${voice.localService}] default:${voice.default}`);
+      Log.write(`voice name:[${voice.name}] lang:[${voice.lang}->${voice.lang.toLowerCase()}] localService:[${voice.localService}] default:${voice.default}`);
       if (voice.lang.includes('ja') !== true) continue;
 
       voices.push(voice);
       const opt = document.createElement('option');
       const name = voice.name + (voice.localService ? "" : SUFFIX_ONLINE);
       opt.textContent = name;
-      voiceSelect.appendChild(opt);
-      logWrite(`[addvoice] ${name}`);
+      selectElement.appendChild(opt);
+      Log.write(`[addvoice] ${name}`);
     }
 
     const ixCurrent = selectOptionByText(voiceSelect, appConfig.voice);
     if (ixCurrent >= 0) {
       voiceCurrent = voices[ixCurrent];
     }
-    logWrite(`[populateVoices] ixCurrent=${ixCurrent} voices=${JSON.stringify(voices.map(v => v.name))} voiceCurrent=${JSON.stringify(voiceCurrent?.name)}`);
-  }
-
-  /**
-   * 音声に対応するoption要素の文字列から、本来の音声名称を取得する
-   * （option要素の文字列には、オンライン処理が必要な音声は末尾に説明がついているため）
-   */
-  function getVoiceNameFromOptionText(optionText: string): string {
-    if (optionText.endsWith(SUFFIX_ONLINE)) {
-      return optionText.substring(0, optionText.length - SUFFIX_ONLINE.length);
-    } else {
-      return optionText;
-    }
+    Log.write(`[populateVoices] ixCurrent=${ixCurrent} voices=${JSON.stringify(voices.map(v => v.name))} voiceCurrent=${JSON.stringify(voiceCurrent?.name)}`);
   }
 
   /**
@@ -127,14 +96,14 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     cancelTimer();
 
     let phrase2 = phrase.endsWith('。') ? phrase.substring(0, phrase.length-1) : phrase;
-    for (const speechDictItem of speechDictionary) {
+    for (const speechDictItem of PhraseManager.speechDictionary) {
       phrase2 = phrase2.replaceAll(speechDictItem.source, speechDictItem.replace);
     }
     const utterance = new SpeechSynthesisUtterance(phrase2);
     if (voiceCurrent != null) {
       utterance.voice = voiceCurrent;
     }
-    logWrite(`[speak] actual speech : ${phrase2} by ${voiceCurrent?.name ?? '(default)'}`);
+    Log.write(`[speak] actual speech : ${phrase2} by ${voiceCurrent?.name ?? '(default)'}`);
     utterance.addEventListener('start', _ev => {
       onSpeakStart();
     });
@@ -165,28 +134,67 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     });
 
     nextButton.addEventListener('click', _ev => {
-      prepareSounds();
+      SoundManager.prepareSounds();
 
-      const [phraseToShow, phraseToPronounce, phraseOriginal] = getNextQuestion();
-      const tokens1 = divideToken([{text: phraseToShow, isAbbr: false, encircle: false}]);
-      const tokens2 = divideNormalTokens(tokens1);
+      const [phraseToShow, phraseToPronounce, phraseOriginal] = PhraseManager.getNextQuestion();
+      const tokens1 = PhraseManager.divideToken([{text: phraseToShow, isAbbr: false, encircle: false}]);
+      const tokens2 = PhraseManager.divideNormalTokens(tokens1);
 
       // phraseTokens を空にする
       while(phraseTokens.pop() != null) {}
       // phraseTokens に求めたトークン配列を設定する
       phraseTokens.push(...tokens2);
 
-      logWrite(`[nextButton.click] next phrase=${phraseOriginal} (show:${phraseToShow} , pronounce:${phraseToPronounce})`);
+      Log.write(`[nextButton.click] next phrase=${phraseOriginal} (show:${phraseToShow} , pronounce:${phraseToPronounce})`);
       speak(phraseToPronounce);
     });
 
     logOpenButton.addEventListener('click', _ => {
-      openLog();
+      Log.openLog();
     });
 
     logCloseButton.addEventListener('click', _ => {
-      logDialog.close();
+      Log.closeLog();
     });
+  }
+
+  /**
+   * select要素の項目から引数と一致するものを選択状態にする。
+   * 引数と一致するものがない場合は何もしない。
+   * @param element 対象となるselect要素
+   * @param text 選択する項目の文字列
+   * @returns 選択された項目のインデックス、もしくは-1（一致する項目がなかった場合）
+   */
+  function selectOptionByText(element: HTMLSelectElement, text: string | undefined): number {
+    if (
+      element.options == null 
+      || element.options.length < 1
+      || text == null
+    ) {
+      return -1;
+    }
+
+    let returnIndex = -1;
+    Array.from(element.options).forEach((option, index) => {
+      const voiceName = getVoiceNameFromOptionText(option.textContent);
+      if (voiceName === text) {
+        option.selected = true;
+        returnIndex = index;
+      }
+    });
+    return returnIndex;
+  }
+
+  /**
+   * 音声に対応するoption要素の文字列から、本来の音声名称を取得する
+   * （option要素の文字列には、オンライン処理が必要な音声は末尾に説明がついているため）
+   */
+  function getVoiceNameFromOptionText(optionText: string): string {
+    if (optionText.endsWith(SUFFIX_ONLINE)) {
+      return optionText.substring(0, optionText.length - SUFFIX_ONLINE.length);
+    } else {
+      return optionText;
+    }
   }
 
   /** 音声合成の準備開始時点での処理 */
@@ -203,11 +211,11 @@ document.addEventListener('DOMContentLoaded', (ev) => {
 
     // 書く長さにあわせた時間経過後に表記例を表示する
     const displayText = phraseTokens.map(token => token.text).join('');
-    const elements = makeDisplayElements(phraseTokens);
+    const elements = PhraseManager.makeDisplayElements(phraseTokens);
 
     const HANDWRITE_RATE = 65 * 1.2; // [文字/分] 基本ペース × 少し早く表示するための補正値
     const periodMsec = displayText.length * (60 / HANDWRITE_RATE * 1000); // ()内は [文字/分] から [ミリ秒/文字] への変換
-    logWrite(`[onSpeakStart] displayText=${displayText} delay=${periodMsec}`);
+    Log.write(`[onSpeakStart] displayText=${displayText} delay=${periodMsec}`);
     timerId = setTimeout(
       () => {
         setSpansToAnswer(elements);
@@ -224,7 +232,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     nextButton.disabled = false;
 
     // カウントダウン中のサウンドを再生
-    playCounting();
+    SoundManager.playCounting();
   }
 
   function makeCountdownAnimation(periodMsec: number): void {
@@ -248,7 +256,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
       animation = undefined;
 
       // カウントダウン完了サウンドを流す
-      playUp();
+      SoundManager.playUp();
     });
   }
 
@@ -308,7 +316,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   /** 設定を保存する */
   function saveConfig(config: Config): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-    logWrite(`saved config : ${JSON.stringify(config)}`);
+    Log.write(`saved config : ${JSON.stringify(config)}`);
   }
 
   /** 設定を取得する */
@@ -317,18 +325,18 @@ document.addEventListener('DOMContentLoaded', (ev) => {
       const text = localStorage.getItem(STORAGE_KEY);
       if (text != null) {
         const obj = JSON.parse(text);
-        logWrite(`[loadConfig] loaded config=${JSON.stringify(obj)}`)
+        Log.write(`[loadConfig] loaded config=${JSON.stringify(obj)}`)
         const config = getConfigDefault();
         if (obj?.voice != null && typeof obj?.voice === 'string') {
           config.voice = obj.voice;
         }
-        logWrite(`config loaded : ${JSON.stringify(config)}`);
+        Log.write(`config loaded : ${JSON.stringify(config)}`);
         return config;
       }
     } catch(err) {
-      logWrite(`error in config-load : ${err}`);
+      Log.write(`error in config-load : ${err}`);
     }
-    logWrite('no config');
+    Log.write('no config');
     return getConfigDefault();
   }
 
@@ -338,41 +346,57 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     // 設定には音声の選択だけがあり、これは音声一覧の更新時に反映されるため、ここでの処理はなし。
   }
 
-  // ========== ========== 汎用的な関数 ========== ==========
+  // ========== ========== 初期処理 ========== ==========
 
-  /**
-   * select要素の項目から引数と一致するものを選択状態にする。
-   * 引数と一致するものがない場合は何もしない。
-   * @param element 対象となるselect要素
-   * @param text 選択する項目の文字列
-   * @returns 選択された項目のインデックス、もしくは-1（一致する項目がなかった場合）
-   */
-  function selectOptionByText(element: HTMLSelectElement, text: string | undefined): number {
-    if (
-      element.options == null 
-      || element.options.length < 1
-      || text == null
-    ) {
-      return -1;
-    }
+  // 音声一覧取得以外のイベントハンドラを設定
+  setEventHandlers();
 
-    let returnIndex = -1;
-    Array.from(element.options).forEach((option, index) => {
-      const voiceName = getVoiceNameFromOptionText(option.textContent);
-      if (voiceName === text) {
-        option.selected = true;
-        returnIndex = index;
-      }
+  // 起動時点で音声が取得できるなら、とりあえずそれを設定する
+  populateVoices(voiceSelect);
+  // 音声一覧が後から更新される場合でも反映できるように（通常はこれ）イベントハンドラを設定
+  if (SS.onvoiceschanged !== undefined) {
+    SS.addEventListener('voiceschanged', _ev => {
+      populateVoices(voiceSelect);
     });
-    return returnIndex;
   }
+
+});
+
+
+namespace Log {
+  // ========== ========== ログ ========== ==========
+
+  const logArray: string[] = [];
+
+  const logDialog = document.getElementById('log-dialog') as HTMLDialogElement;
+
+  const logText = document.getElementById('log-text') as HTMLDivElement;
+
+  export function write(text: string): void {
+    logArray.push(text);
+    console.log(text);
+  }
+
+  export function openLog(): void {
+    logText.textContent = logArray.join('\n');
+    logDialog.showModal();
+  }
+
+  export function closeLog(): void {
+    logDialog.close();
+  }
+}
+
+
+namespace Util {
+  // ========== ========== 汎用的な関数 ========== ==========
 
   /**
    * 配列をシャッフルしたものを返す
    * @param array シャッフルする対象となる配列
    * @return シャッフルされた配列
    */
-  function shuffleArray<T>(array: T[]): T[] {
+  export function shuffleArray<T>(array: T[]): T[] {
     const result = [...array];
     const len = result.length
     for (let i = len-1 ; i > 0 ; i--) {
@@ -390,10 +414,115 @@ document.addEventListener('DOMContentLoaded', (ev) => {
    * @param delta [option] 増分
    * @returns 数列の配列
    */
-  function generateArithmeticSequence(start: number, count: number, delta: number = 1): number[] {
+  export function generateArithmeticSequence(start: number, count: number, delta: number = 1): number[] {
     return [...Array(count)].map((_,ix) => ix*delta + start);
   }
+}
 
+class SpeechManager {
+  // シングルトン
+  public static obj(): SpeechManager {
+    if (this._obj == null) {
+      this._obj = new SpeechManager();
+    }
+    return this._obj;
+  }
+  private static _obj: SpeechManager | undefined;
+  private constructor() {}
+  // シングルトン処理終了
+
+  /** 音声合成インタフェース */
+  private readonly SS = window.speechSynthesis
+
+  /** ブラウザで利用できる日本語音声 */
+  private voices:SpeechSynthesisVoice[] = [];
+
+  /** 選択された音声 */
+  private voiceCurrent:SpeechSynthesisVoice | undefined = undefined;
+
+  /** 音声一覧を示すselect要素を空にする */
+  public clearVoices(): void {
+    this.voices = []
+  }
+
+  /**
+   * ブラウザで使える、日本語・ローカル処理可能な音声を列挙する
+   * @param nameVoice [オプション] 音声合成に使用する音声名称
+   * @returns 音声名称の一覧
+   */
+  public enumerateVoices(nameVoice: string | undefined): string[] {
+    const voicesAll = this.SS.getVoices().sort((a,b) => a.name.localeCompare(b.name));
+    Log.write(`Enumerate voices... ${voicesAll?.length ?? "null"} SS:${this.SS != null}`);
+    if (voicesAll == null || voicesAll?.length < 1) {
+      return [];
+    }
+
+    this.clearVoices()
+    this.voices = [];
+
+    for (const voice of voicesAll) {
+      Log.write(`voice name:[${voice.name}] lang:[${voice.lang}->${voice.lang.toLowerCase()}] localService:[${voice.localService}] default:${voice.default}`);
+      if (voice.lang.includes('ja') !== true) continue;
+
+      this.voices.push(voice);
+      Log.write(`[addvoice] ${name}`);
+    }
+
+    this.voiceCurrent = this.voices.find(v => v.name === nameVoice && nameVoice != null);
+    Log.write(`[populateVoices] parameter(voice name)=${nameVoice} voices=${JSON.stringify(this.voices.map(v => v.name))} voiceCurrent=${JSON.stringify(this.voiceCurrent?.name)}`);
+
+    return this.voices.map(v => v.name);
+  }
+
+  /**
+   * 引数で指定した文字列を読み上げる
+   * @param {string} phrase 読み上げる文字列
+   */
+  public speak(
+    phrase: string,
+    options?: {
+      onSpeakPrepare?: () => void,
+      onSpeakStart?: () => void,
+      onSpeakEnd?: () => void,
+      onSpeakError?: () => void,
+    }
+  ): void {
+    let phrase2 = phrase.endsWith('。') ? phrase.substring(0, phrase.length-1) : phrase;
+    for (const speechDictItem of PhraseManager.speechDictionary) {
+      phrase2 = phrase2.replaceAll(speechDictItem.source, speechDictItem.replace);
+    }
+    const utterance = new SpeechSynthesisUtterance(phrase2);
+    if (this.voiceCurrent != null) {
+      utterance.voice = this.voiceCurrent;
+    }
+    Log.write(`[speak] actual speech : ${phrase2} by ${this.voiceCurrent?.name ?? '(default)'}`);
+    utterance.addEventListener('start', _ev => {
+      if (options?.onSpeakStart != null) {
+        options.onSpeakStart();
+      }
+    });
+    utterance.addEventListener('end', _ev => {
+      if (options?.onSpeakEnd != null) {
+        options.onSpeakEnd();
+      }
+    });
+    utterance.addEventListener('error', ev => {
+      if (options?.onSpeakError != null) {
+        options.onSpeakError();
+      }
+      if (options?.onSpeakEnd != null) {
+        options.onSpeakEnd();
+      }
+    });
+
+    if (options?.onSpeakPrepare != null) {
+      options.onSpeakPrepare();
+    }
+    this.SS.speak(utterance);
+  }
+}
+
+namespace SoundManager {
   // ========== ========== サウンド処理 ========== ==========
 
   /** ツール内で使うサウンド一覧 */
@@ -415,7 +544,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   let initialized = false;
 
   /** サウンド準備 */
-  function prepareSounds(): void {
+  export function prepareSounds(): void {
     if (initialized) return;
     // 音量初期化
     for (const sound of Object.values(_SOUNDS)) {
@@ -425,55 +554,43 @@ document.addEventListener('DOMContentLoaded', (ev) => {
       sound.audio.pause();
       const volume = Math.min(1.0, Math.max(0.0, sound.volume / 100));
       sound.audio.volume = volume;
-      logWrite(`[prepareSounds] sound[${sound.audio.baseURI}] volume=${volume}`);
+      Log.write(`[prepareSounds] sound[${sound.audio.baseURI}] volume=${volume}`);
     }
     initialized = true;
   }
 
   /** カウントダウン中サウンドの再生を開始する */
-  function playCounting(): void {
+  export function playCounting(): void {
     _SOUNDS.counting.audio.currentTime = 0;
     _SOUNDS.counting.audio.play();
   }
 
   /** カウントダウン中サウンドの再生を停止する */
-  function stopPlayCounting(): void {
+  export function stopPlayCounting(): void {
     _SOUNDS.counting.audio.pause();
   }
 
   /** カウントダウン完了時サウンドの再生を開始する */
-  function playUp(): void {
+  export function playUp(): void {
     stopPlayCounting();
     _SOUNDS.up.audio.currentTime = 0;
     _SOUNDS.up.audio.play();
   }
 
   /** カウントダウン完了時サウンドの再生を停止する */
-  function stopPlayUp(): void {
+  export function stopPlayUp(): void {
     _SOUNDS.up.audio.pause();
   }
 
   /** 全てのサウンドを停止する */
-  function stopAllSounds(): void {
+  export function stopAllSounds(): void {
     for (const sound of Object.values(_SOUNDS)) {
       sound.audio.pause();
     }
   }
+}
 
-  // ========== ========== 初期処理 ========== ==========
-
-  // 音声一覧取得以外のイベントハンドラを設定
-  setEventHandlers();
-
-  // 起動時点で音声が取得できるなら、とりあえずそれを設定する
-  populateVoices();
-  // 音声一覧が後から更新される場合でも反映できるように（通常はこれ）イベントハンドラを設定
-  if (SS.onvoiceschanged !== undefined) {
-    SS.addEventListener('voiceschanged', _ev => {
-      populateVoices();
-    });
-  }
-
+namespace PhraseManager {
   // ========== ========== 出題フレーズ関連処理 ========== ==========
 
   /**
@@ -491,7 +608,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
    * 形式はカクヨムのものを基準にさらに限定して、"｜表示文字列《よみがな》" とした。
    * @returns 表示用文字列、発音用文字列、元文字列のタプル
    */
-  function getNextQuestion(): [string, string, string] {
+  export function getNextQuestion(): [string, string, string] {
     if (questionIds.length < 1) {
       fillQuestionIdsRandomly();
     }
@@ -534,13 +651,13 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   function fillQuestionIdsRandomly(): void {
     if (questionIds.length > 0) return;
 
-    const idSeq = generateArithmeticSequence(0, phrases.length);
-    const idShuffled = shuffleArray(idSeq);
-    logWrite(`[fillQuestionIdsWithRandom] shuffled=${JSON.stringify(idShuffled)}`);
+    const idSeq = Util.generateArithmeticSequence(0, phrases.length);
+    const idShuffled = Util.shuffleArray(idSeq);
+    Log.write(`[fillQuestionIdsWithRandom] shuffled=${JSON.stringify(idShuffled)}`);
     questionIds.push(...idShuffled);
   }
 
-  function makeDisplayElements(tokens: PhraseToken[]): HTMLSpanElement[] {
+  export function makeDisplayElements(tokens: PhraseToken[]): HTMLSpanElement[] {
     const elements = tokens.map(token => {
       const el = document.createElement('span');
       el.textContent = token.text;
@@ -555,7 +672,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     return elements;
   }
 
-  function divideToken(tokens: PhraseToken[]): PhraseToken[] {
+  export function divideToken(tokens: PhraseToken[]): PhraseToken[] {
     const result = [...tokens];
     for (const abbrItem of abbreviationArray) {
       while(true) {
@@ -596,7 +713,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
    * @param tokens 処理対象となるトークン配列（この配列は変化しない）
    * @return 処理後のトークン配列
    */
-  function divideNormalTokens(tokens: PhraseToken[]): PhraseToken[] {
+  export function divideNormalTokens(tokens: PhraseToken[]): PhraseToken[] {
     const result: PhraseToken[] = [];
     for (const token of tokens) {
       if (token.isAbbr) {
@@ -616,7 +733,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     return result;
   }
 
-  type PhraseToken = {
+  export type PhraseToken = {
     text: string,
     isAbbr: boolean,
     encircle: boolean,
@@ -652,7 +769,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     replace: string,
   };
 
-  const speechDictionary: SpeechDictionaryItem[] = [
+  export const speechDictionary: SpeechDictionaryItem[] = [
     {source: "失聴者", replace: "しっちょうしゃ"},
     {source: "失聴", replace: "しっちょう"},
     {source: "健聴者", replace: "けんちょうしゃ"},
@@ -733,4 +850,4 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     "聴覚障害がない人を健聴者という。",
     "目と耳の両方に障害があるのが盲ろう者。",
   ] as const;
-});
+}
