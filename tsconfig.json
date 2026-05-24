@@ -6,7 +6,7 @@
   "compilerOptions": {
     // File Layout
     "rootDir": "./src",
-    "outDir": "./",
+    "outDir": "./dist/",
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
