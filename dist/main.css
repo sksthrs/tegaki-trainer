@@ -155,7 +155,7 @@ input, button, select, option {
   border-radius: min(8dvh, 8dvw);
   margin-left: 3px;
   margin-right: 3px;
-  padding: 0.2em 0.1em 0.2em 0.1em;
+  padding: 0.2em 0.1em 0.2em 0.1em; /* 丸が文字に被るのを回避 */
 }
 
 .countdown {
