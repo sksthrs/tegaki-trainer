@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   /** 設定値を保存する際のキー文字列 */
   const STORAGE_KEY = "TegakiTrainer"
 
+  /** 音声option要素のdatasetに設定する本来の音声名称を表すキー */
+  const DATASET_VOICE_NAME = "voiceName";
+
   /** 次ボタン */
   const nextButton = document.getElementById('next') as HTMLButtonElement;
 
@@ -39,53 +42,28 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   /** ネット接続が必要な音声につける説明文字列 */
   const SUFFIX_ONLINE = " (要ネット接続)";
 
-  /** 音声合成インタフェース */
-  const SS = window.speechSynthesis
-  
   const voiceSelect = document.getElementById('voices') as HTMLSelectElement;
 
-  /** ブラウザで利用できる日本語音声 */
-  let voices:SpeechSynthesisVoice[] = [];
-
-  /** 選択された音声 */
-  let voiceCurrent:SpeechSynthesisVoice | undefined = undefined;
-
-  /** 音声一覧を示すselect要素を空にする */
-  function clearVoices(selectElement: HTMLSelectElement): void {
-    voices = []
+  /** ブラウザで使える、日本語・ローカル処理可能な音声をselect要素に詰める */
+  function populateVoices(selectElement: HTMLSelectElement, voices: SpeechSynthesisVoice[]): void {
     for (const opt of selectElement.options) {
       opt.remove()
     }
-  }
 
-  /** ブラウザで使える、日本語・ローカル処理可能な音声をselect要素に詰める */
-  function populateVoices(selectElement: HTMLSelectElement): void {
-    const voicesAll = SS.getVoices().sort((a,b) => a.name.localeCompare(b.name));
-    Log.write(`Enumerate voices... ${voicesAll?.length ?? "null"} SS:${SS != null}`);
-    if (voicesAll == null || voicesAll?.length < 1) {
-      return;
-    }
-
-    clearVoices(selectElement)
-    voices = [];
-
-    for (const voice of voicesAll) {
-      Log.write(`voice name:[${voice.name}] lang:[${voice.lang}->${voice.lang.toLowerCase()}] localService:[${voice.localService}] default:${voice.default}`);
-      if (voice.lang.includes('ja') !== true) continue;
-
-      voices.push(voice);
+    voices.forEach((voice, index) => {
       const opt = document.createElement('option');
       const name = voice.name + (voice.localService ? "" : SUFFIX_ONLINE);
       opt.textContent = name;
+      opt.dataset[DATASET_VOICE_NAME] = voice.name;
       selectElement.appendChild(opt);
-      Log.write(`[addvoice] ${name}`);
-    }
-
-    const ixCurrent = selectOptionByText(voiceSelect, appConfig.voice);
-    if (ixCurrent >= 0) {
-      voiceCurrent = voices[ixCurrent];
-    }
-    Log.write(`[populateVoices] ixCurrent=${ixCurrent} voices=${JSON.stringify(voices.map(v => v.name))} voiceCurrent=${JSON.stringify(voiceCurrent?.name)}`);
+      const isMatchConfig = (
+        appConfig.voice != null && voice.name === appConfig.voice
+      );
+      if (isMatchConfig) {
+        selectElement.selectedIndex = index;
+      }
+      Log.write(`[populateVoices.add-option] ${name} selected=${isMatchConfig}`);
+    });
   }
 
   /**
@@ -95,42 +73,37 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   function speak(phrase: string): void {
     cancelTimer();
 
-    let phrase2 = phrase.endsWith('。') ? phrase.substring(0, phrase.length-1) : phrase;
+    // 末尾の「。」は無音なだけで無駄なので削除
+    let phrase2 = phrase.endsWith('。') 
+      ? phrase.substring(0, phrase.length - 1) 
+      : phrase;
+    // 音声合成が対応しない語句の置き換え
     for (const speechDictItem of PhraseManager.speechDictionary) {
       phrase2 = phrase2.replaceAll(speechDictItem.source, speechDictItem.replace);
     }
-    const utterance = new SpeechSynthesisUtterance(phrase2);
-    if (voiceCurrent != null) {
-      utterance.voice = voiceCurrent;
-    }
-    Log.write(`[speak] actual speech : ${phrase2} by ${voiceCurrent?.name ?? '(default)'}`);
-    utterance.addEventListener('start', _ev => {
-      onSpeakStart();
+
+    // 音声合成
+    SpeechManager.obj().speak(phrase2, {
+      voiceName: appConfig.voice,
+      onSpeakPrepare: () => {onSpeakPrepare();},
+      onSpeakStart: () => {onSpeakStart();},
+      onSpeakEnd: () => {onSpeakEnd();},
+      onSpeakError: (ev) => {
+        answerDisplay.textContent = `音声合成で異常が発生しました。音声を切り替えるか、Chromeなど他のブラウザでご利用ください。（エラーコード : ${ev.error}/${ev.name}）`;
+        onSpeakEnd();
+        cancelTimer();
+      },
     });
-    utterance.addEventListener('end', _ev => {
-      onSpeakEnd();
-    });
-    utterance.addEventListener('error', ev => {
-      answerDisplay.textContent = `音声合成で異常が発生しました。音声を切り替えるか、Chromeなど他のブラウザでご利用ください。（エラーコード : ${ev.error}/${ev.name}）`;
-      onSpeakEnd();
-      cancelTimer();
-    });
-    onSpeakPrepare();
-    SS.speak(utterance);
   }
 
   // ========== ========== 本件特有の関数いろいろ ========== ==========
 
   function setEventHandlers(): void {
-    voiceSelect.addEventListener('input', ev => {
-      const ix = voiceSelect.selectedIndex;
-      if (0 <= ix && ix < voices.length) {
-        voiceCurrent = voices[ix];
-        if (voiceCurrent?.name != null) {
-          appConfig.voice = voiceCurrent.name;
-          saveConfig(appConfig);
-        }
-      }
+    voiceSelect.addEventListener('input', _ev => {
+      const nameVoice = voiceSelect.selectedOptions.item(0)?.dataset[DATASET_VOICE_NAME];
+      if (nameVoice == null) return;
+      appConfig.voice = nameVoice;
+      saveConfig(appConfig);
     });
 
     nextButton.addEventListener('click', _ev => {
@@ -156,45 +129,6 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     logCloseButton.addEventListener('click', _ => {
       Log.closeLog();
     });
-  }
-
-  /**
-   * select要素の項目から引数と一致するものを選択状態にする。
-   * 引数と一致するものがない場合は何もしない。
-   * @param element 対象となるselect要素
-   * @param text 選択する項目の文字列
-   * @returns 選択された項目のインデックス、もしくは-1（一致する項目がなかった場合）
-   */
-  function selectOptionByText(element: HTMLSelectElement, text: string | undefined): number {
-    if (
-      element.options == null 
-      || element.options.length < 1
-      || text == null
-    ) {
-      return -1;
-    }
-
-    let returnIndex = -1;
-    Array.from(element.options).forEach((option, index) => {
-      const voiceName = getVoiceNameFromOptionText(option.textContent);
-      if (voiceName === text) {
-        option.selected = true;
-        returnIndex = index;
-      }
-    });
-    return returnIndex;
-  }
-
-  /**
-   * 音声に対応するoption要素の文字列から、本来の音声名称を取得する
-   * （option要素の文字列には、オンライン処理が必要な音声は末尾に説明がついているため）
-   */
-  function getVoiceNameFromOptionText(optionText: string): string {
-    if (optionText.endsWith(SUFFIX_ONLINE)) {
-      return optionText.substring(0, optionText.length - SUFFIX_ONLINE.length);
-    } else {
-      return optionText;
-    }
   }
 
   /** 音声合成の準備開始時点での処理 */
@@ -352,14 +286,9 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   setEventHandlers();
 
   // 起動時点で音声が取得できるなら、とりあえずそれを設定する
-  populateVoices(voiceSelect);
-  // 音声一覧が後から更新される場合でも反映できるように（通常はこれ）イベントハンドラを設定
-  if (SS.onvoiceschanged !== undefined) {
-    SS.addEventListener('voiceschanged', _ev => {
-      populateVoices(voiceSelect);
-    });
-  }
-
+  SpeechManager.obj().init((voices) => {
+    populateVoices(voiceSelect, voices);
+  });
 });
 
 
@@ -437,27 +366,30 @@ class SpeechManager {
   /** ブラウザで利用できる日本語音声 */
   private voices:SpeechSynthesisVoice[] = [];
 
-  /** 選択された音声 */
-  private voiceCurrent:SpeechSynthesisVoice | undefined = undefined;
+  private onVoicesChanged: (voices: SpeechSynthesisVoice[]) => void = _ => {};
 
-  /** 音声一覧を示すselect要素を空にする */
-  public clearVoices(): void {
-    this.voices = []
+  public init(onVoicesChanged: (voices: SpeechSynthesisVoice[]) => void): void {
+    this.onVoicesChanged = (vs) => onVoicesChanged(vs);
+    this.enumerateVoices();
+    if (this.SS.onvoiceschanged !== undefined) {
+      this.SS.addEventListener('voiceschanged', _ev => {
+        this.enumerateVoices();
+      });
+    }
   }
 
   /**
    * ブラウザで使える、日本語・ローカル処理可能な音声を列挙する
-   * @param nameVoice [オプション] 音声合成に使用する音声名称
+   * @param voiceName [オプション] 音声合成に使用する音声名称
    * @returns 音声名称の一覧
    */
-  public enumerateVoices(nameVoice: string | undefined): string[] {
+  private enumerateVoices(): void {
     const voicesAll = this.SS.getVoices().sort((a,b) => a.name.localeCompare(b.name));
     Log.write(`Enumerate voices... ${voicesAll?.length ?? "null"} SS:${this.SS != null}`);
     if (voicesAll == null || voicesAll?.length < 1) {
-      return [];
+      return;
     }
 
-    this.clearVoices()
     this.voices = [];
 
     for (const voice of voicesAll) {
@@ -465,13 +397,10 @@ class SpeechManager {
       if (voice.lang.includes('ja') !== true) continue;
 
       this.voices.push(voice);
-      Log.write(`[addvoice] ${name}`);
+      Log.write(`[addvoice] ${voice.name}`);
     }
 
-    this.voiceCurrent = this.voices.find(v => v.name === nameVoice && nameVoice != null);
-    Log.write(`[populateVoices] parameter(voice name)=${nameVoice} voices=${JSON.stringify(this.voices.map(v => v.name))} voiceCurrent=${JSON.stringify(this.voiceCurrent?.name)}`);
-
-    return this.voices.map(v => v.name);
+    this.onVoicesChanged(this.voices);
   }
 
   /**
@@ -481,21 +410,24 @@ class SpeechManager {
   public speak(
     phrase: string,
     options?: {
+      voiceName?: string | undefined,
       onSpeakPrepare?: () => void,
       onSpeakStart?: () => void,
       onSpeakEnd?: () => void,
-      onSpeakError?: () => void,
+      onSpeakError?: (ev: SpeechSynthesisErrorEvent) => void,
     }
   ): void {
+    Log.write(`[speak] phrase=[${phrase}] voiceName=[${options?.voiceName}]`);
     let phrase2 = phrase.endsWith('。') ? phrase.substring(0, phrase.length-1) : phrase;
     for (const speechDictItem of PhraseManager.speechDictionary) {
       phrase2 = phrase2.replaceAll(speechDictItem.source, speechDictItem.replace);
     }
     const utterance = new SpeechSynthesisUtterance(phrase2);
-    if (this.voiceCurrent != null) {
-      utterance.voice = this.voiceCurrent;
+    const voiceForNow = this.voices.find(v => v.name === options?.voiceName);
+    if (voiceForNow != null) {
+      utterance.voice = voiceForNow;
     }
-    Log.write(`[speak] actual speech : ${phrase2} by ${this.voiceCurrent?.name ?? '(default)'}`);
+    Log.write(`[speak] actual speech : ${phrase2} by ${voiceForNow?.name ?? '(default)'}`);
     utterance.addEventListener('start', _ev => {
       if (options?.onSpeakStart != null) {
         options.onSpeakStart();
@@ -508,7 +440,7 @@ class SpeechManager {
     });
     utterance.addEventListener('error', ev => {
       if (options?.onSpeakError != null) {
-        options.onSpeakError();
+        options.onSpeakError(ev);
       }
       if (options?.onSpeakEnd != null) {
         options.onSpeakEnd();
