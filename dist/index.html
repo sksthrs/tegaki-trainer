@@ -24,6 +24,12 @@
     <div id="tool" class="flex-fixed flex-h-center">
       <span class="flex-fixed">声 : </span>
       <select id="voices" class="flex-grow"></select>
+      <div id="remaining">
+        <span>　[残り</span><span id="remaining-time">00</span><span>秒</span><span>]</span>
+      </div>
+      <div>
+        <span> [</span><span id="num-phrases">0</span><span>回]</span>
+      </div>
       <button id="log-open">log</button>
     </div>
     <div id="description">
@@ -33,7 +39,7 @@
     <div id="operation" class="flex-fixed flex-h-center">
       <button id="next">次の例文</button>
     </div>
-    <div id="answer" class="flex-grow"></div>
+    <div id="answer"></div>
     <!-- 効果音ラボ（https://soundeffect-lab.info/）のサウンドを利用させていただいてます -->
   </div>
   <dialog id="log-dialog">

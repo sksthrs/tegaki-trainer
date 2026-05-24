@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   /** 設定値を保存する際のキー文字列 */
   const STORAGE_KEY = "TegakiTrainer"
 
+  const CLASS_COUNTING = "counting";
+
   /** 音声option要素のdatasetに設定する本来の音声名称を表すキー */
   const DATASET_VOICE_NAME = "voiceName";
 
@@ -152,11 +154,13 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     Log.write(`[onSpeakStart] displayText=${displayText} delay=${periodMsec}`);
     timerId = setTimeout(
       () => {
+        answerDisplay.classList.remove(CLASS_COUNTING);
         setSpansToAnswer(elements);
         timerId = -1;
       }, 
       periodMsec
     );
+    answerDisplay.classList.add(CLASS_COUNTING);
     makeCountdownAnimation(periodMsec);
   }
 
@@ -706,6 +710,7 @@ namespace PhraseManager {
     {source: "失聴", replace: "しっちょう"},
     {source: "健聴者", replace: "けんちょうしゃ"},
     {source: "健聴", replace: "けんちょう"},
+    {source: "読話", replace: "どくわ"},
   ];
 
   // ========== ========== 出題フレーズそのもの ========== ==========

@@ -124,13 +124,17 @@ input, button, select, option {
 #answer {
   flex-grow: 0;
   background-color: #ddddff;
-  min-height: 30dvh;
+  /*min-height: 30dvh;*/
+  min-height: 2.0em;
   width: 80%;
-  padding: 1%;
+  padding: 0.5em 0.5em 0.5em 0.5em;
   text-align: center;
   font-size: min(8dvh, 8dvw);
   font-weight: bold;
-  line-height: 120%;
+  line-height: 100%;
+}
+
+.counting {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
@@ -151,6 +155,7 @@ input, button, select, option {
   border-radius: min(8dvh, 8dvw);
   margin-left: 3px;
   margin-right: 3px;
+  padding: 0.2em 0.1em 0.2em 0.1em;
 }
 
 .countdown {

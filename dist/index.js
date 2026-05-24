@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     }
     /** 設定値を保存する際のキー文字列 */
     const STORAGE_KEY = "TegakiTrainer";
+    const CLASS_COUNTING = "counting";
     /** 音声option要素のdatasetに設定する本来の音声名称を表すキー */
     const DATASET_VOICE_NAME = "voiceName";
     /** 次ボタン */
@@ -120,9 +121,11 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         const periodMsec = displayText.length * (60 / HANDWRITE_RATE * 1000); // ()内は [文字/分] から [ミリ秒/文字] への変換
         Log.write(`[onSpeakStart] displayText=${displayText} delay=${periodMsec}`);
         timerId = setTimeout(() => {
+            answerDisplay.classList.remove(CLASS_COUNTING);
             setSpansToAnswer(elements);
             timerId = -1;
         }, periodMsec);
+        answerDisplay.classList.add(CLASS_COUNTING);
         makeCountdownAnimation(periodMsec);
     }
     /** 発声終了時点での処理 */
@@ -596,6 +599,7 @@ var PhraseManager;
         { source: "失聴", replace: "しっちょう" },
         { source: "健聴者", replace: "けんちょうしゃ" },
         { source: "健聴", replace: "けんちょう" },
+        { source: "読話", replace: "どくわ" },
     ];
     // ========== ========== 出題フレーズそのもの ========== ==========
     const phrases = [
