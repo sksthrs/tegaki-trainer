@@ -129,19 +129,19 @@ input, button, select, option {
 }
 
 #operation.small {
-  height: 15%;
+  height: 10%;
 }
 
 #next {
   width: 100%;
   height: 100%;
-  font-size: min(16dvh, 12dvw);
+  font-size: min(16dvh, 16dvw);
   border-radius: 5dvh;
   cursor: pointer;
 }
 
 #operation.small #next {
-  font-size: min(8dvh, 6dvw);
+  font-size: min(6dvh, 6dvw);
   border-radius: 2.5dvh;
 }
 

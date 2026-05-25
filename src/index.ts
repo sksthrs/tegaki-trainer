@@ -88,26 +88,27 @@ document.addEventListener('DOMContentLoaded', (ev) => {
       nextButton.textContent = 'スタート';
     },
     onExercising: () => {
-      descriptionArea.classList.remove(CLASS_HIDE);
+      descriptionArea.classList.add(CLASS_HIDE);
       resultArea.classList.add(CLASS_HIDE);
       operationArea.classList.remove(CLASS_SMALL);
       nextButton.textContent = '次の例文';
     },
     onOvertime: () => {
-      descriptionArea.classList.remove(CLASS_HIDE);
+      descriptionArea.classList.add(CLASS_HIDE);
       resultArea.classList.add(CLASS_HIDE);
       operationArea.classList.remove(CLASS_SMALL);
       nextButton.textContent = '終了';
     },
     onFinish: () => {
-      descriptionArea.classList.add(CLASS_HIDE);
+      descriptionArea.classList.remove(CLASS_HIDE);
       resultArea.classList.remove(CLASS_HIDE);
       resultPeriod.textContent = appState.getNSeconds().toString();
       resultPhrases.textContent = appState.getNPhrases().toString();
       resultGraphemes.textContent = appState.getNGraphemes().toString();
       operationArea.classList.add(CLASS_SMALL);
       nextButton.textContent = '再挑戦';
-      resultArea.animate(
+      nextButton.disabled = true;
+      const animate = resultArea.animate(
         [
           { backgroundColor: '#000000' },
           { backgroundColor: '#ffff00', offset: 0.4 },
@@ -117,6 +118,9 @@ document.addEventListener('DOMContentLoaded', (ev) => {
           duration: 1000,
         }
       );
+      animate.addEventListener('finish', _ev => {
+        nextButton.disabled = false;
+      });
     },
   });
 
@@ -254,7 +258,11 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   }
 
   function updateStateDisplay(): void {
-    timeArea.textContent = Math.round(timer.getCurrentSeconds()).toString();
+    const time = Math.round(timer.getCurrentSeconds());
+    const minutes = Math.floor(time / 60);
+    const minutesText = (minutes > 0) ? `${minutes}分` : '';
+    const seconds = time - minutes*60;
+    timeArea.textContent = `${minutesText}${seconds}`;
     numPhraseArea.textContent = appState.getNPhrases().toString();
   }
 
