@@ -5,7 +5,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TegakiTrainer v0.6</title>
-  <link href="main.css?0_6" rel="stylesheet">
+  <link href="main.css?0_7" rel="stylesheet">
   <meta name="description" content="TegakiTrainer - 手書き要約筆記練習ツール">
   <meta property="og:title" content="TegakiTrainer">
   <meta property="og:description" content="手書き要約筆記練習ツール">
@@ -22,19 +22,26 @@
 <body>
   <div id="app">
     <div id="tool" class="flex-fixed flex-h-center">
-      <span class="flex-fixed">声 : </span>
+      <button id="speak-test-button" class="flex-fixed">声 : </button>
       <select id="voices" class="flex-grow"></select>
-      <div id="remaining">
-        <span>　[残り</span><span id="remaining-time">00</span><span>秒</span><span>]</span>
-      </div>
-      <div>
-        <span> [</span><span id="num-phrases">0</span><span>回]</span>
-      </div>
       <button id="log-open">log</button>
     </div>
+    <div id="tool2" class="flex-fixed flex-h-center">
+      <div id="remaining">
+        <span>[</span><span id="remaining-time">-</span><span>秒</span><span>経過]</span>
+      </div>
+      <div>
+        <span> [</span><span id="num-phrases">0</span><span>問]</span>
+      </div>
+    </div>
     <div id="description">
-      「次の例文」ボタンを押すと、ランダムな例文を音声で読み上げます。
+      ボタンを押すと、ランダムな例文を音声で読み上げます。
       <br>手書き表記例の長さに応じたカウントの後に表記例を示します。
+      <br><span id="description-minutes">-</span>分経つと、練習終了です。
+    </div>
+    <div id="result">
+      <span id="result-period">-</span>秒間で<span id="result-phrases">-</span>問、<span id="result-graphemes">-</span>文字程度を書きました。
+      <br>練習をもう１回行うには、下のボタンを押してください。
     </div>
     <div id="operation" class="flex-fixed flex-h-center">
       <button id="next">次の例文</button>
@@ -48,6 +55,6 @@
       <button id="log-close">OK</button>
     </div>
   </dialog>
-  <script type="module" src="index.js?0_6"></script>
+  <script type="module" src="index.js?0_7"></script>
 </body>
 </html>

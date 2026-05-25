@@ -74,6 +74,10 @@ input, button, select, option {
   text-align: center;
 }
 
+.hide {
+  display: none;
+}
+
 /* ==================== Specific styles ==================== */
 
 #app {
@@ -94,6 +98,17 @@ input, button, select, option {
   flex-direction: row;
   justify-content: center;
   align-items: center;
+  gap: 8px;
+  font-size: 24px;
+}
+
+#tool2 {
+  min-width: 80%;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
   font-size: 24px;
 }
 
@@ -113,12 +128,28 @@ input, button, select, option {
   height: 30%;
 }
 
+#operation.small {
+  height: 15%;
+}
+
 #next {
   width: 100%;
   height: 100%;
   font-size: min(16dvh, 12dvw);
   border-radius: 5dvh;
   cursor: pointer;
+}
+
+#operation.small #next {
+  font-size: min(8dvh, 6dvw);
+  border-radius: 2.5dvh;
+}
+
+#result {
+  max-width: 90dvw;
+  border: 1px solid #404040;
+  padding: 2dvh 2dvw;
+  font-size: 24px;
 }
 
 #answer {

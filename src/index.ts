@@ -14,13 +14,47 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     document.documentElement.lang = navigator.language;
   }
 
+  // ========== ========== 定数など ========== ==========
+
   /** 設定値を保存する際のキー文字列 */
   const STORAGE_KEY = "TegakiTrainer"
 
+  /** 回答例を出すまでのタイマーカウントダウン中であることを示すクラス（スタイル切替用） */
   const CLASS_COUNTING = "counting";
+
+  const CLASS_SMALL = "small";
+
+  const CLASS_HIDE = "hide";
 
   /** 音声option要素のdatasetに設定する本来の音声名称を表すキー */
   const DATASET_VOICE_NAME = "voiceName";
+
+  /** ドリフトを自動補正するタイマー */
+  const timer = new TickingTimer();
+
+  /** １回の練習基準時間 [秒] */
+  const T_EXERCISE = 180;
+
+  const speakTestButton = document.getElementById('speak-test-button') as HTMLButtonElement;
+
+  const timeArea = document.getElementById('remaining-time') as HTMLSpanElement;
+
+  const numPhraseArea = document.getElementById('num-phrases') as HTMLSpanElement;
+
+  const descriptionArea = document.getElementById('description') as HTMLDivElement;
+
+  const exercisePeriodArea = document.getElementById('description-minutes') as HTMLSpanElement;
+  exercisePeriodArea.textContent = (T_EXERCISE/60).toString();
+
+  const resultArea = document.getElementById('result') as HTMLDivElement;
+
+  const resultPeriod = document.getElementById('result-period') as HTMLSpanElement;
+
+  const resultPhrases = document.getElementById('result-phrases') as HTMLSpanElement;
+
+  const resultGraphemes = document.getElementById('result-graphemes') as HTMLSpanElement;
+
+  const operationArea = document.getElementById('operation') as HTMLDivElement;
 
   /** 次ボタン */
   const nextButton = document.getElementById('next') as HTMLButtonElement;
@@ -37,14 +71,56 @@ document.addEventListener('DOMContentLoaded', (ev) => {
 
   const logCloseButton = document.getElementById('log-close') as HTMLButtonElement;
 
-  let animation: Animation | undefined = undefined;
-
-  // ========== ========== 音声合成 ========== ==========
-
   /** ネット接続が必要な音声につける説明文字列 */
   const SUFFIX_ONLINE = " (要ネット接続)";
 
   const voiceSelect = document.getElementById('voices') as HTMLSelectElement;
+
+  let animation: Animation | undefined = undefined;
+
+  let answerText: string = '';
+
+  const appState = new AppState({
+    onInit: () => {
+      descriptionArea.classList.remove(CLASS_HIDE);
+      resultArea.classList.add(CLASS_HIDE);
+      operationArea.classList.add(CLASS_SMALL);
+      nextButton.textContent = 'スタート';
+    },
+    onExercising: () => {
+      descriptionArea.classList.remove(CLASS_HIDE);
+      resultArea.classList.add(CLASS_HIDE);
+      operationArea.classList.remove(CLASS_SMALL);
+      nextButton.textContent = '次の例文';
+    },
+    onOvertime: () => {
+      descriptionArea.classList.remove(CLASS_HIDE);
+      resultArea.classList.add(CLASS_HIDE);
+      operationArea.classList.remove(CLASS_SMALL);
+      nextButton.textContent = '終了';
+    },
+    onFinish: () => {
+      descriptionArea.classList.add(CLASS_HIDE);
+      resultArea.classList.remove(CLASS_HIDE);
+      resultPeriod.textContent = appState.getNSeconds().toString();
+      resultPhrases.textContent = appState.getNPhrases().toString();
+      resultGraphemes.textContent = appState.getNGraphemes().toString();
+      operationArea.classList.add(CLASS_SMALL);
+      nextButton.textContent = '再挑戦';
+      resultArea.animate(
+        [
+          { backgroundColor: '#000000' },
+          { backgroundColor: '#ffff00', offset: 0.4 },
+          { backgroundColor: '#ffffff' },
+        ],
+        {
+          duration: 1000,
+        }
+      );
+    },
+  });
+
+  // ========== ========== 音声合成 ========== ==========
 
   /** ブラウザで使える、日本語・ローカル処理可能な音声をselect要素に詰める */
   function populateVoices(selectElement: HTMLSelectElement, voices: SpeechSynthesisVoice[]): void {
@@ -91,9 +167,27 @@ document.addEventListener('DOMContentLoaded', (ev) => {
       onSpeakStart: () => {onSpeakStart();},
       onSpeakEnd: () => {onSpeakEnd();},
       onSpeakError: (ev) => {
+        Log.write(`[speak] speak-error name[${ev.name}] error[${ev.error}]`);
         answerDisplay.textContent = `音声合成で異常が発生しました。音声を切り替えるか、Chromeなど他のブラウザでご利用ください。（エラーコード : ${ev.error}/${ev.name}）`;
         onSpeakEnd();
         cancelTimer();
+      },
+    });
+  }
+
+  function speakTest(phrase: string): void {
+    SpeechManager.obj().speak(phrase, {
+      voiceName: appConfig.voice,
+      onSpeakPrepare: () => {
+        speakTestButton.disabled = true;
+      },
+      onSpeakStart: () => {},
+      onSpeakEnd: () => {
+        speakTestButton.disabled = false;
+      },
+      onSpeakError: (ev) => {
+        Log.write(`[speakTest] speak-error name[${ev.name}] error[${ev.error}]`);
+        speakTestButton.disabled = false;
       },
     });
   }
@@ -108,20 +202,46 @@ document.addEventListener('DOMContentLoaded', (ev) => {
       saveConfig(appConfig);
     });
 
+    speakTestButton.addEventListener('click', _ => {
+      speakTest('手書き練習ツールの読み上げ音声合成のテストです');
+    });
+
     nextButton.addEventListener('click', _ev => {
-      SoundManager.prepareSounds();
+      switch(appState.getState()) {
+        case 'init':
+          appState.resetScore();
+          appState.setNewState('exercising');
+          timer.start();
+          updateStateDisplay();
+          preparePhrase();
+          break;
+        case 'exercising':
+          appState.addScore(answerText.length);
+          updateStateDisplay();
+          preparePhrase();
+          break;
+        case 'overtime':
+          appState.addScore(answerText.length);
+          appState.setNSeconds(timer.getCurrentSeconds());
+          appState.setNewState('finished');
+          updateStateDisplay();
+          timer.stop();
+          break;
+        case 'finished':
+          appState.resetScore();
+          appState.setNewState('exercising');
+          timer.start();
+          updateStateDisplay();
+          preparePhrase();
+          break;
+      }
+    });
 
-      const [phraseToShow, phraseToPronounce, phraseOriginal] = PhraseManager.getNextQuestion();
-      const tokens1 = PhraseManager.divideToken([{text: phraseToShow, isAbbr: false, encircle: false}]);
-      const tokens2 = PhraseManager.divideNormalTokens(tokens1);
-
-      // phraseTokens を空にする
-      while(phraseTokens.pop() != null) {}
-      // phraseTokens に求めたトークン配列を設定する
-      phraseTokens.push(...tokens2);
-
-      Log.write(`[nextButton.click] next phrase=${phraseOriginal} (show:${phraseToShow} , pronounce:${phraseToPronounce})`);
-      speak(phraseToPronounce);
+    timer.setOnTick(second => {
+      if (appState.getState() === 'exercising' && second >= T_EXERCISE) {
+        appState.setNewState('overtime');
+      }
+      updateStateDisplay();
     });
 
     logOpenButton.addEventListener('click', _ => {
@@ -131,6 +251,27 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     logCloseButton.addEventListener('click', _ => {
       Log.closeLog();
     });
+  }
+
+  function updateStateDisplay(): void {
+    timeArea.textContent = Math.round(timer.getCurrentSeconds()).toString();
+    numPhraseArea.textContent = appState.getNPhrases().toString();
+  }
+
+  function preparePhrase(): void {
+    SoundManager.prepareSounds();
+
+    const [phraseToShow, phraseToPronounce, phraseOriginal] = PhraseManager.getNextQuestion();
+    const tokens1 = PhraseManager.divideToken([{text: phraseToShow, isAbbr: false, encircle: false}]);
+    const tokens2 = PhraseManager.divideNormalTokens(tokens1);
+
+    // phraseTokens を空にする
+    while(phraseTokens.pop() != null) {}
+    // phraseTokens に求めたトークン配列を設定する
+    phraseTokens.push(...tokens2);
+
+    Log.write(`[nextButton.click] next phrase=${phraseOriginal} (show:${phraseToShow} , pronounce:${phraseToPronounce})`);
+    speak(phraseToPronounce);
   }
 
   /** 音声合成の準備開始時点での処理 */
@@ -162,6 +303,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     );
     answerDisplay.classList.add(CLASS_COUNTING);
     makeCountdownAnimation(periodMsec);
+    answerText = displayText;
   }
 
   /** 発声終了時点での処理 */
@@ -293,7 +435,73 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   SpeechManager.obj().init((voices) => {
     populateVoices(voiceSelect, voices);
   });
+
+  appState.setNewState('init');
+  updateStateDisplay();
 });
+
+
+type State = 'init' | 'exercising' | 'overtime' | 'finished';
+
+class AppState {
+  private state: State = 'init';
+  public getState() {return this.state;}
+
+  private nPhrases: number = 0;
+  public getNPhrases() {return this.nPhrases;}
+
+  private nGraphemes: number = 0;
+  public getNGraphemes() {return this.nGraphemes;}
+
+  private nSeconds: number = 0;
+  public getNSeconds() {return this.nSeconds;}
+  public setNSeconds(s:number) {this.nSeconds = s;}
+
+  private onInit: () => void;
+  private onExercising: () => void;
+  private onOvertime: () => void;
+  private onFinish: () => void;
+
+  constructor(eventHandlers:{
+    onInit: () => void,
+    onExercising: () => void,
+    onOvertime: () => void,
+    onFinish: () => void,
+  }) {
+    this.onInit = () => eventHandlers.onInit();
+    this.onExercising = () => eventHandlers.onExercising();
+    this.onOvertime = () => eventHandlers.onOvertime();
+    this.onFinish = () => eventHandlers.onFinish();
+  }
+
+  public setNewState(newState: State): void {
+    this.state = newState;
+    switch(newState) {
+      case 'init':
+        this.onInit();
+        break;
+      case 'exercising':
+        this.onExercising();
+        break;
+      case 'overtime':
+        this.onOvertime();
+        break;
+      case 'finished':
+        this.onFinish();
+        break;
+    }
+  }
+
+  public resetScore(): void {
+    this.nPhrases = 0;
+    this.nGraphemes = 0;
+  }
+
+  public addScore(nGraphemes: number): void {
+    this.nPhrases++;
+    this.nGraphemes += nGraphemes;
+  }
+}
 
 
 namespace Log {
@@ -349,6 +557,73 @@ namespace Util {
    */
   export function generateArithmeticSequence(start: number, count: number, delta: number = 1): number[] {
     return [...Array(count)].map((_,ix) => ix*delta + start);
+  }
+}
+
+/**
+ * ――――――――――――――――――――――――――――――
+ * １秒ごとに処理を呼び出すタイマー。
+ * 毎秒ごとにドリフト誤差を自動的に補正するため概ねブラウザ環境の時刻精度で動作する。
+ * ――――――――――――――――――――――――――――――
+ */
+class TickingTimer {
+  private _timerId = 0;
+  public isTimerWorking = () => this._timerId > 0;
+
+  private _startTime = 0;
+  public getStartTime = () => this._startTime;
+
+  private _secondNow = 0;
+  public getCurrentSeconds = () => this._secondNow;
+
+  private _onTick: (second:number) => void = _ => {};
+
+  /**
+   * タイマーを開始する。
+   * タイマーの自動終了はないので、tick関数からstop()を明示的に呼び出すこと。
+   * もし既にタイマーが動いていた場合、既存のタイマーは破棄される。
+   */
+  public start(): void {
+    if (this._timerId > 0) {
+      this.stopTimer();
+    }
+
+    this._startTime = Date.now();
+    this._secondNow = 0;
+
+    this._timerId = setTimeout(() => {
+      this.onTick();
+    }, 1000);
+  }
+
+  /** タイマーを終了する */
+  public stop(): void {
+    this.stopTimer();
+  }
+
+  /** １秒ごとの処理を登録する */
+  public setOnTick(func: (second: number) => void): void {
+    this._onTick = (second) => func(second);
+  }
+
+  private stopTimer(): void {
+    if (this._timerId > 0) {
+      clearTimeout(this._timerId);
+      this._timerId = 0;
+    }
+  }
+
+  private onTick(): void {
+    if (this._timerId > 0) {
+      this._secondNow++;
+      this._onTick(this._secondNow);
+      if (this._timerId > 0) {
+        const next = this._startTime + (this._secondNow + 1) * 1000;
+        this._timerId = setTimeout(() => {
+          this.onTick();
+        }, next - Date.now());
+      }
+    }
   }
 }
 
