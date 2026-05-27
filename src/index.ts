@@ -975,6 +975,7 @@ namespace PhraseManager {
     { source: "要約筆記", abbr: "ヨ", encircle: true, },
     { source: "ろうあ", abbr: "ろ", encircle: true, },
     { source: "FAX", abbr: "Ｆ", encircle: true, },
+    { source: "ＦＡＸ", abbr: "Ｆ", encircle: true, },
     { source: "手話", abbr: "手", encircle: true, },
     { source: "コミュニケーション", abbr: "コミ", encircle: false, },
     { source: "中途失聴", abbr: "中失", encircle: false, },
@@ -988,16 +989,19 @@ namespace PhraseManager {
     replace: string,
   };
 
+  /** 音声合成で正しく読めない語句 */
   export const speechDictionary: SpeechDictionaryItem[] = [
     {source: "失聴者", replace: "しっちょうしゃ"},
     {source: "失聴", replace: "しっちょう"},
     {source: "健聴者", replace: "けんちょうしゃ"},
     {source: "健聴", replace: "けんちょう"},
     {source: "読話", replace: "どくわ"},
+    {source: "盲ろう者", replace: "もうろうしゃ"},
   ];
 
   // ========== ========== 出題フレーズそのもの ========== ==========
 
+  /** 出題フレーズ。読みを明示的に示す場合は「｜表示文字列《読み》」という形式で入れること */
   const phrases = [
     "難聴者には正面から話しかける。",
     "聴覚障害の原因はさまざま。",
@@ -1068,6 +1072,6 @@ namespace PhraseManager {
     "ヒアリングループの音質はモノラルです。",
     "片耳が健聴でも人工内耳にできることがある。",
     "聴覚障害がない人を健聴者という。",
-    "目と耳の両方に障害があるのが盲ろう者。",
+    "｜目《め》と耳の両方に障害があるのが盲ろう者。",
   ] as const;
 }
