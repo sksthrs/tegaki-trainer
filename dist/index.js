@@ -12,6 +12,24 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     if (navigator.language != null && navigator.language.length > 0) {
         document.documentElement.lang = navigator.language;
     }
+    // 非対応環境はダイアログを表示（閉じる手段は提供しない）
+    {
+        const nameIAB = Util.detectInAppBrowser();
+        const canUseSpeechSynthesis = (window.speechSynthesis != null);
+        Log.write(`[DOMContentLoaded] SpeechSynthesis:${canUseSpeechSynthesis} InAppBrowser:${nameIAB} UserAgent=${navigator.userAgent}`);
+        if (nameIAB != null || canUseSpeechSynthesis !== true) {
+            const d = document.getElementById('not-available-dialog');
+            const msg1 = document.getElementById('in-app-browser-message');
+            if (nameIAB == null) {
+                msg1.style.display = 'none';
+            }
+            const msg2 = document.getElementById('unavailable-browser-message');
+            if (canUseSpeechSynthesis) {
+                msg2.style.display = 'none';
+            }
+            d.showModal();
+        }
+    }
     // ========== ========== 定数など ========== ==========
     /** 設定値を保存する際のキー文字列 */
     const STORAGE_KEY = "TegakiTrainer";
@@ -460,6 +478,54 @@ var Util;
         return [...Array(count)].map((_, ix) => ix * delta + start);
     }
     Util.generateArithmeticSequence = generateArithmeticSequence;
+    /**
+     * 文字列に、第２引数以降で指定する文字列のいずれかが含まれるか判定する。
+     * String.prototype.includesの引数が複数個のORになったもの。
+     * @param text 検索対象の文字列
+     * @param searchStrings 検索される文字列群
+     * @returns いずれかが含まれればtrue、全て含まれなければfalse
+     */
+    function includesAny(text, ...searchStrings) {
+        searchStrings.forEach(search => {
+            if (text.includes(search))
+                return true;
+        });
+        return false;
+    }
+    Util.includesAny = includesAny;
+    /**
+     * ページを開いているユーザーエージェントについて、アプリ内ブラウザを可能な範囲で識別する。
+     * 普通のブラウザ（Chrome, Safari, Firefox...）なら空文字列を返しておく。
+     *
+     * 参考
+     * - https://zenn.dev/kecy/articles/f51851e42c4243
+     * - https://dev.classmethod.jp/articles/liff-vs-line-inappbrowser-user-agent/
+     * - https://blog.inforg.jp/%E3%82%A2%E3%83%97%E3%83%AA%E5%86%85%E3%83%96%E3%83%A9%E3%82%A6%E3%82%B6%E5%AF%BE%E7%AD%96/
+     *
+     * @returns アプリ内ブラウザならその名称、アプリ内ブラウザと判定されなければnull
+     */
+    function detectInAppBrowser() {
+        const ua = window.navigator.userAgent.toLowerCase();
+        // facebook
+        if (includesAny(ua, 'fbios', 'fb_iab'))
+            return 'facebook';
+        // instagram
+        if (ua.includes('instagram'))
+            return 'instagram';
+        // LINE（PC版LINEはデフォルトブラウザが開くのでアプリ内ブラウザは考慮しない）
+        // LIFFはLINE Front-end FrameworkというLINE内アプリの中のブラウザのこと
+        // 今回は両者を識別する意味はないのでまとめてLINEとして判定する。
+        if (includesAny(ua, ' line/', ' liff'))
+            return 'LINE';
+        // Threads（内部での元のコードネーム "Barcelona" が含まれるらしい）
+        if (ua.includes('barcelona'))
+            return 'Threads';
+        // 旧Twitter（普通のブラウザのuser-agentを使うという話と"Twitter for iPhone", "TwitterAndroid"を含むという説が混在している）
+        if (ua.includes('twitter'))
+            return 'Twitter';
+        return null;
+    }
+    Util.detectInAppBrowser = detectInAppBrowser;
 })(Util || (Util = {}));
 /**
  * ――――――――――――――――――――――――――――――
