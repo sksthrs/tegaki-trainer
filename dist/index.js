@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
             }
             else {
                 const msg2 = document.getElementById('unavailable-browser-message');
-                if (canUseSpeechSynthesis) {
+                if (canUseSpeechSynthesis !== true) {
                     msg2.style.display = 'none';
                 }
             }

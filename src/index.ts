@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         msg1.style.display = 'none';
       } else {
         const msg2 = document.getElementById('unavailable-browser-message') as HTMLDivElement;
-        if (canUseSpeechSynthesis) {
+        if (canUseSpeechSynthesis !== true) {
           msg2.style.display = 'none';
         }
       }
