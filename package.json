@@ -1,6 +1,6 @@
 {
   "name": "tegaki-trainer",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "main": "dist/index.html",
   "scripts": {
     "dev": "tsc && http-server -c-1 dist",

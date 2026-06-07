@@ -486,10 +486,11 @@ var Util;
      * @returns いずれかが含まれればtrue、全て含まれなければfalse
      */
     function includesAny(text, ...searchStrings) {
-        searchStrings.forEach(search => {
+        for (const search of searchStrings) {
             if (text.includes(search))
                 return true;
-        });
+        }
+        ;
         return false;
     }
     Util.includesAny = includesAny;
