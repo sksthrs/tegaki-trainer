@@ -24,10 +24,11 @@ document.addEventListener('DOMContentLoaded', (ev) => {
       const msg1 = document.getElementById('in-app-browser-message') as HTMLDivElement;
       if (nameIAB == null) {
         msg1.style.display = 'none';
-      }
-      const msg2 = document.getElementById('unavailable-browser-message') as HTMLDivElement;
-      if (canUseSpeechSynthesis) {
-        msg2.style.display = 'none';
+      } else {
+        const msg2 = document.getElementById('unavailable-browser-message') as HTMLDivElement;
+        if (canUseSpeechSynthesis) {
+          msg2.style.display = 'none';
+        }
       }
       d.showModal();
     }

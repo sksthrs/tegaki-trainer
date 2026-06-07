@@ -23,9 +23,11 @@ document.addEventListener('DOMContentLoaded', (ev) => {
             if (nameIAB == null) {
                 msg1.style.display = 'none';
             }
-            const msg2 = document.getElementById('unavailable-browser-message');
-            if (canUseSpeechSynthesis) {
-                msg2.style.display = 'none';
+            else {
+                const msg2 = document.getElementById('unavailable-browser-message');
+                if (canUseSpeechSynthesis) {
+                    msg2.style.display = 'none';
+                }
             }
             d.showModal();
         }
