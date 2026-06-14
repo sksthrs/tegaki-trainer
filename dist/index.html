@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TegakiTrainer v0.7.5</title>
-  <link href="main.css?0_7_5" rel="stylesheet">
+  <title>TegakiTrainer v0.8</title>
+  <link href="main.css?0_8" rel="stylesheet">
   <meta name="description" content="TegakiTrainer - 手書き要約筆記練習ツール">
   <meta property="og:title" content="TegakiTrainer">
   <meta property="og:description" content="手書き要約筆記練習ツール">
@@ -41,7 +41,8 @@
     </div>
     <div id="result">
       <span id="result-period">-</span>秒間で<span id="result-phrases">-</span>問、<span id="result-graphemes">-</span>文字程度を書きました。
-      <br>練習を続けるには、下のボタンを押します。
+      <br>これまでの練習回数は<span id="exercise-count"></span>回です。
+      <br><button id="erase-exercise-count">回数を初期化</button>
     </div>
     <div id="operation" class="flex-fixed flex-h-center">
       <button id="next">次の例文</button>
@@ -59,6 +60,6 @@
     <div id="in-app-browser-message">アプリ内ブラウザで開いているようです。標準のブラウザで開き直してください。</div>
     <div id="unavailable-browser-message">このブラウザでは音声が出せません。ChromeかSafariで開いてください。</div>
   </dialog>
-  <script type="module" src="index.js?0_7_5"></script>
+  <script type="module" src="index.js?0_8"></script>
 </body>
 </html>

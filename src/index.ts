@@ -74,6 +74,10 @@ document.addEventListener('DOMContentLoaded', (ev) => {
 
   const resultGraphemes = document.getElementById('result-graphemes') as HTMLSpanElement;
 
+  const exerciseCountBox = document.getElementById('exercise-count') as HTMLSpanElement;
+
+  const eraseCountButton = document.getElementById('erase-exercise-count') as HTMLButtonElement;
+
   const operationArea = document.getElementById('operation') as HTMLDivElement;
 
   /** 次ボタン */
@@ -122,9 +126,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     onFinish: () => {
       descriptionArea.classList.remove(CLASS_HIDE);
       resultArea.classList.remove(CLASS_HIDE);
-      resultPeriod.textContent = appState.getNSeconds().toString();
-      resultPhrases.textContent = appState.getNPhrases().toString();
-      resultGraphemes.textContent = appState.getNGraphemes().toString();
+      updateResultDisplay();
       operationArea.classList.add(CLASS_SMALL);
       nextButton.textContent = '再挑戦';
       nextButton.disabled = true;
@@ -236,25 +238,34 @@ document.addEventListener('DOMContentLoaded', (ev) => {
           appState.resetScore();
           appState.setNewState('exercising');
           timer.start();
+          eraseCountButton.blur();
           updateStateDisplay();
           preparePhrase();
           break;
         case 'exercising':
           appState.addScore(answerText.length);
+          eraseCountButton.blur();
           updateStateDisplay();
           preparePhrase();
           break;
         case 'overtime':
+          appConfig.exerciseCount++;
+          saveConfig(appConfig);
           appState.addScore(answerText.length);
           appState.setNSeconds(timer.getCurrentSeconds());
           appState.setNewState('finished');
+          eraseCountButton.blur();
           updateStateDisplay();
           timer.stop();
+          if (animation != null && animation.playState !== 'finished') {
+            animation.finish();
+          }
           break;
         case 'finished':
           appState.resetScore();
           appState.setNewState('exercising');
           timer.start();
+          eraseCountButton.blur();
           updateStateDisplay();
           preparePhrase();
           break;
@@ -266,6 +277,14 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         appState.setNewState('overtime');
       }
       updateStateDisplay();
+    });
+
+    eraseCountButton.addEventListener('click', _ => {
+      eraseCountButton.blur();
+      appConfig.exerciseCount = 0;
+      saveConfig(appConfig);
+      updateStateDisplay();
+      updateResultDisplay();
     });
 
     logOpenButton.addEventListener('click', _ => {
@@ -284,6 +303,13 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     const seconds = time - minutes*60;
     timeArea.textContent = `${minutesText}${seconds}`;
     numPhraseArea.textContent = appState.getNPhrases().toString();
+  }
+
+  function updateResultDisplay(): void {
+    resultPeriod.textContent = appState.getNSeconds().toString();
+    resultPhrases.textContent = appState.getNPhrases().toString();
+    resultGraphemes.textContent = appState.getNGraphemes().toString();
+    exerciseCountBox.textContent = appConfig.exerciseCount.toString();
   }
 
   function preparePhrase(): void {
@@ -409,6 +435,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   /** アプリケーション設定 */
   type Config = {
     voice?: string,
+    exerciseCount: number,
   };
 
   let appConfig: Config = loadConfig();
@@ -418,6 +445,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
   function getConfigDefault(): Config {
     return {
       voice: "",
+      exerciseCount: 0,
     };
   }
 
@@ -437,6 +465,9 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         const config = getConfigDefault();
         if (obj?.voice != null && typeof obj?.voice === 'string') {
           config.voice = obj.voice;
+        }
+        if (obj?.exerciseCount != null && typeof obj?.exerciseCount === 'number') {
+          config.exerciseCount = obj.exerciseCount;
         }
         Log.write(`config loaded : ${JSON.stringify(config)}`);
         return config;
@@ -1059,12 +1090,13 @@ namespace PhraseManager {
 
   /** 音声合成で正しく読めない語句 */
   export const speechDictionary: SpeechDictionaryItem[] = [
-    {source: "失聴者", replace: "しっちょうしゃ"},
-    {source: "失聴", replace: "しっちょう"},
-    {source: "健聴者", replace: "けんちょうしゃ"},
-    {source: "健聴", replace: "けんちょう"},
-    {source: "読話", replace: "どくわ"},
-    {source: "盲ろう者", replace: "もうろうしゃ"},
+    {source: "失聴者", replace: "しっちょうしゃ"}, // 誤読例「しつききもの」
+    {source: "失聴", replace: "しっちょう"}, // 誤読例「しつきき」
+    {source: "健聴者", replace: "けんちょうしゃ"}, // 誤読例「けんききもの」
+    {source: "健聴", replace: "けんちょう"}, // 誤読例「けんきき」
+    {source: "読話", replace: "どくわ"}, // 誤読例「よみはなし」
+    {source: "盲ろう者", replace: "もうろうしゃ"}, // 誤読例「もうろうもの」
+    {source: "欠格条項", replace: "けっかく条項"}, // 誤読例「けつかくじょうこう」
   ];
 
   // ========== ========== 出題フレーズそのもの ========== ==========
@@ -1122,7 +1154,7 @@ namespace PhraseManager {
     "「週刊手話ニュース」をご存じですか？",
     "ろうあ連盟が手話の辞典を出した。",
     "今年の全難聴の大会は、京都である。",
-    "全難聴の「難聴者の｜明日《あす》」は｜年《ねん》４回の発行。",
+    "全難聴の「難聴者の｜明日《あす》」｜は《わ》｜年《ねん》４回の発行。", // 誤読例「なんちょうしゃのあしたは としよんかいの……」
     "難聴者向けの読話教室がほしい。",
     "要約筆記者の派遣は市町村の必須事業。",
     "耳マークを福祉課に置いてほしい。",
@@ -1132,7 +1164,7 @@ namespace PhraseManager {
     "2025年度に「手話リンク」の提供が始まった。",
     "障害者手帳がなくても電話リレーサービスは使える。",
     "ヨメテルは、発話ができる聴覚障害者が対象。",
-    "中途失聴者や難聴者にも手話を使う人はいる。",
+    "中途失聴者や難聴者にも手話を使う人｜は《わ》いる。",
     "昔、字幕放送デコーダーを福祉でもらった。",
     "津波フラッグは、聴覚障害者にも分かりやすい。",
     "ヒアリングループがあるので、補聴器をＴかＭＴに切りかえて。",
@@ -1140,6 +1172,7 @@ namespace PhraseManager {
     "ヒアリングループの音質はモノラルです。",
     "片耳が健聴でも人工内耳にできることがある。",
     "聴覚障害がない人を健聴者という。",
-    "｜目《め》と耳の両方に障害があるのが盲ろう者。",
+    "｜目《め》と耳の両方に障害があるのが盲ろう者。", // 誤読例「もくとみみの……」
+    "６月６日は補聴器の日。",
   ] as const;
 }

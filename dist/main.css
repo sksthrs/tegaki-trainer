@@ -152,6 +152,12 @@ input, button, select, option {
   font-size: 24px;
 }
 
+#erase-exercise-count {
+  font-size: 70%;
+  line-height: 100%;
+  padding: 2px 4px;
+}
+
 #answer {
   flex-grow: 0;
   background-color: #ddddff;
