@@ -260,6 +260,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
           if (animation != null && animation.playState !== 'finished') {
             animation.finish();
           }
+          clearAnswer();
           break;
         case 'finished':
           appState.resetScore();
