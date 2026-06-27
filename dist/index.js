@@ -55,8 +55,12 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     const resultPeriod = document.getElementById('result-period');
     const resultPhrases = document.getElementById('result-phrases');
     const resultGraphemes = document.getElementById('result-graphemes');
+    const resultSpeed = document.getElementById('result-speed');
+    const maxSpeed = document.getElementById('max-speed');
+    const conguraturationMessage = document.getElementById('conguraturations');
     const exerciseCountBox = document.getElementById('exercise-count');
     const eraseCountButton = document.getElementById('erase-exercise-count');
+    const eraseMaxSpeedButton = document.getElementById('erase-max-speed');
     const operationArea = document.getElementById('operation');
     /** 次ボタン */
     const nextButton = document.getElementById('next');
@@ -192,26 +196,41 @@ document.addEventListener('DOMContentLoaded', (ev) => {
                     appState.setNewState('exercising');
                     timer.start();
                     eraseCountButton.blur();
+                    eraseMaxSpeedButton.blur();
                     updateStateDisplay();
                     preparePhrase();
                     break;
                 case 'exercising':
                     appState.addScore(answerText.length);
                     eraseCountButton.blur();
+                    eraseMaxSpeedButton.blur();
                     updateStateDisplay();
                     preparePhrase();
                     break;
                 case 'overtime':
+                    eraseCountButton.blur();
+                    eraseMaxSpeedButton.blur();
                     appConfig.exerciseCount++;
-                    saveConfig(appConfig);
                     appState.addScore(answerText.length);
                     appState.setNSeconds(timer.getCurrentSeconds());
+                    let isNewRecord = (appState.getSpeed() > appConfig.maxSpeed);
+                    if (isNewRecord) {
+                        appConfig.maxSpeed = appState.getSpeed();
+                    }
+                    saveConfig(appConfig);
                     appState.setNewState('finished');
-                    eraseCountButton.blur();
                     updateStateDisplay();
                     timer.stop();
                     if (animation != null && animation.playState !== 'finished') {
                         animation.finish();
+                    }
+                    if (isNewRecord) {
+                        conguraturationMessage.classList.remove(CLASS_HIDE);
+                        SoundManager.playNewRecord();
+                    }
+                    else {
+                        conguraturationMessage.classList.add(CLASS_HIDE);
+                        SoundManager.playFinish();
                     }
                     clearAnswer();
                     break;
@@ -220,6 +239,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
                     appState.setNewState('exercising');
                     timer.start();
                     eraseCountButton.blur();
+                    eraseMaxSpeedButton.blur();
                     updateStateDisplay();
                     preparePhrase();
                     break;
@@ -234,6 +254,13 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         eraseCountButton.addEventListener('click', _ => {
             eraseCountButton.blur();
             appConfig.exerciseCount = 0;
+            saveConfig(appConfig);
+            updateStateDisplay();
+            updateResultDisplay();
+        });
+        eraseMaxSpeedButton.addEventListener('click', _ => {
+            eraseMaxSpeedButton.blur();
+            appConfig.maxSpeed = 0;
             saveConfig(appConfig);
             updateStateDisplay();
             updateResultDisplay();
@@ -258,6 +285,8 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         resultPhrases.textContent = appState.getNPhrases().toString();
         resultGraphemes.textContent = appState.getNGraphemes().toString();
         exerciseCountBox.textContent = appConfig.exerciseCount.toString();
+        resultSpeed.textContent = Math.round(appState.getSpeed()).toString();
+        maxSpeed.textContent = Math.round(appConfig.maxSpeed).toString();
     }
     function preparePhrase() {
         SoundManager.prepareSounds();
@@ -363,6 +392,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         return {
             voice: "",
             exerciseCount: 0,
+            maxSpeed: 0,
         };
     }
     /** 設定を保存する */
@@ -383,6 +413,9 @@ document.addEventListener('DOMContentLoaded', (ev) => {
                 }
                 if (obj?.exerciseCount != null && typeof obj?.exerciseCount === 'number') {
                     config.exerciseCount = obj.exerciseCount;
+                }
+                if (obj?.maxSpeed != null && typeof obj?.maxSpeed === 'number') {
+                    config.maxSpeed = obj.maxSpeed;
                 }
                 Log.write(`config loaded : ${JSON.stringify(config)}`);
                 return config;
@@ -420,6 +453,9 @@ class AppState {
     nSeconds = 0;
     getNSeconds() { return this.nSeconds; }
     setNSeconds(s) { this.nSeconds = s; }
+    getSpeed() {
+        return this.nSeconds > 0 ? (this.nGraphemes * 60 / this.nSeconds) : 0;
+    }
     onInit;
     onExercising;
     onOvertime;
@@ -716,6 +752,18 @@ var SoundManager;
             volume: 10,
             isLoop: false,
         },
+        /** 練習終了サウンド */
+        finish: {
+            audio: new Audio('./sounds/finish.mp3'),
+            volume: 10,
+            isLoop: false,
+        },
+        /** ハイスコア時サウンド */
+        newRecord: {
+            audio: new Audio('./sounds/new-record.mp3'),
+            volume: 10,
+            isLoop: false,
+        },
     };
     let initialized = false;
     /** サウンド準備 */
@@ -758,6 +806,30 @@ var SoundManager;
         _SOUNDS.up.audio.pause();
     }
     SoundManager.stopPlayUp = stopPlayUp;
+    /** 練習終了サウンドの再生を開始する */
+    function playFinish() {
+        stopPlayFinish();
+        _SOUNDS.finish.audio.currentTime = 0;
+        _SOUNDS.finish.audio.play();
+    }
+    SoundManager.playFinish = playFinish;
+    /** 練習終了サウンドの再生を停止する */
+    function stopPlayFinish() {
+        _SOUNDS.finish.audio.pause();
+    }
+    SoundManager.stopPlayFinish = stopPlayFinish;
+    /** ハイスコア時サウンドの再生を開始する */
+    function playNewRecord() {
+        stopPlayNewRecord();
+        _SOUNDS.newRecord.audio.currentTime = 0;
+        _SOUNDS.newRecord.audio.play();
+    }
+    SoundManager.playNewRecord = playNewRecord;
+    /** ハイスコア時サウンドの再生を停止する */
+    function stopPlayNewRecord() {
+        _SOUNDS.newRecord.audio.pause();
+    }
+    SoundManager.stopPlayNewRecord = stopPlayNewRecord;
     /** 全てのサウンドを停止する */
     function stopAllSounds() {
         for (const sound of Object.values(_SOUNDS)) {

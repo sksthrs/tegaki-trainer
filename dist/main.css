@@ -152,10 +152,14 @@ input, button, select, option {
   font-size: 24px;
 }
 
-#erase-exercise-count {
+#result > p {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+#toolarea {
+  text-align: end;
   font-size: 70%;
-  line-height: 100%;
-  padding: 2px 4px;
 }
 
 #answer {

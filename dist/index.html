@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TegakiTrainer v0.8.1</title>
-  <link href="main.css?0_8_1" rel="stylesheet">
+  <title>TegakiTrainer v0.9</title>
+  <link href="main.css?0_9" rel="stylesheet">
   <meta name="description" content="TegakiTrainer - 手書き要約筆記練習ツール">
   <meta property="og:title" content="TegakiTrainer">
   <meta property="og:description" content="手書き要約筆記練習ツール">
@@ -40,9 +40,14 @@
       <br><span id="description-minutes">-</span>分経つと、練習終了です。
     </div>
     <div id="result">
-      <span id="result-period">-</span>秒間で<span id="result-phrases">-</span>問、<span id="result-graphemes">-</span>文字程度を書きました。
-      <br>これまでの練習回数は<span id="exercise-count"></span>回です。
-      <br><button id="erase-exercise-count">回数を初期化</button>
+      <p><span id="result-period">-</span>秒間で<span id="result-phrases">-</span>問、<span id="result-graphemes">-</span>文字程度を書きました。</p>
+      <p>ペースは<span id="result-speed">-</span>文字/分（最高記録<span id="max-speed">-</span>文字/分）</p>
+      <p id="conguraturations" class="hide">新記録です！おめでとうございます！</p>
+      <p>これまでの練習回数は<span id="exercise-count"></span>回です。</p>
+      <div id="toolarea">
+        <button id="erase-max-speed">成績を初期化</button>
+        <button id="erase-exercise-count">回数を初期化</button>
+      </div>
     </div>
     <div id="operation" class="flex-fixed flex-h-center">
       <button id="next">次の例文</button>
@@ -60,6 +65,6 @@
     <div id="in-app-browser-message">アプリ内ブラウザで開いているようです。標準のブラウザで開き直してください。</div>
     <div id="unavailable-browser-message">このブラウザでは音声が出せません。ChromeかSafariで開いてください。</div>
   </dialog>
-  <script type="module" src="index.js?0_8_1"></script>
+  <script type="module" src="index.js?0_9"></script>
 </body>
 </html>
