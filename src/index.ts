@@ -1177,6 +1177,13 @@ namespace PhraseManager {
     {source: "盲ろう者", replace: "もうろうしゃ"}, // 誤読例「もうろうもの」
     {source: "欠格条項", replace: "けっかく条項"}, // 誤読例「けつかくじょうこう」
   ];
+  /** iOSで正しく読めない語句対応 */
+  export const iOSSpeechDictionary: SpeechDictionaryItem[] = [
+    {source: "感音難聴", replace: "かんおんなんちょう"}, // 誤読例「かんおとなんちょう」
+    {source: "感音", replace: "かんおん"}, // 誤読例「かんおとなんちょう」
+    {source: "フィッティング", replace: "フィィッッティング"}, // 「ふぃてぃんぐ」になってしまう
+    {source: "っ", replace: "っっ"}, // iOSは促音の大半が詰まる（一部詰まらない場合もあるが法則性がないので無条件で置き換える）
+  ];
 
   // ========== ========== 出題フレーズそのもの ========== ==========
 
