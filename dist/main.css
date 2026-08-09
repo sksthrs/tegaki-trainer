@@ -29,6 +29,14 @@ input, button, select, option {
   font-size: 100%;
 }
 
+/* button in iOS safari is too rounded and padding too wide */
+button {
+  -webkit-appearance: none;
+  border-radius: 2px;
+  padding: 1px 6px;
+  color: black;
+}
+
 /* ==================== Generic classes ==================== */
 
 .flex-v {
@@ -90,6 +98,14 @@ input, button, select, option {
   justify-content: center;
   align-items: center;
   gap: 3dvh;
+}
+
+#app-version {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 12px;
+  line-height: 100%;
 }
 
 #tool {
@@ -214,7 +230,7 @@ input, button, select, option {
 
 #op-test-dialog {
   width: 80%;
-  height: 40%;
+  height: 60%;
   padding: 0.5em;
 }
 
@@ -237,11 +253,12 @@ input, button, select, option {
 
 #op-test-text {
   font-size: min(8dvh, 8dvw);
+  line-height: 120%;
 }
 
 #op-test-tool button {
-  margin-left: 0.5em;
-  margin-right: 0.5em;
+  margin-left: 0.2em;
+  margin-right: 0.2em;
 }
 
 #log-open {

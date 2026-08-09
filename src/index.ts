@@ -1225,6 +1225,9 @@ namespace PhraseManager {
   /** ルビ抽出用の正規表現 */
   const RE_RUBY = /｜([^《]+)《([^》]+)》/g;
 
+  let os: string | undefined;
+  let browser: string | undefined;
+
   /**
    * 問題文の数を取得する。
    */
@@ -1272,15 +1275,6 @@ namespace PhraseManager {
     // 読み仮名チェック
     const matches = [...phrase.matchAll(RE_RUBY)];
 
-    // 読み仮名表記を含まない場合は元の文字列が表記用かつ発音用になる
-    if (matches.length < 1) {
-      return {
-        displayPhrase: phrase,
-        pronouncePhrase: phrase,
-        originalPhrase: phrase,
-      };
-    }
-
     // 読み仮名表記を含む場合はそれぞれを構築する
     let phraseToShow = '';
     let phraseToPronounce_raw = '';
@@ -1308,25 +1302,33 @@ namespace PhraseManager {
     let phraseToPronounce = phraseToPronounce_raw.endsWith('。') 
       ? phraseToPronounce_raw.substring(0, phraseToPronounce_raw.length - 1) 
       : phraseToPronounce_raw;
-    // 音声合成が対応しない語句の置き換え
-    for (const speechDictItem of PhraseManager.speechDictionary) {
-      phraseToPronounce = phraseToPronounce.replaceAll(
-        speechDictItem.source, 
-        speechDictItem.replace
-      );
-    }
 
-    // iOSのブラウザは読み上げ異常が多いので専用辞書による処理を行う。
+    // iOSのブラウザは読み上げ異常が多いので専用辞書による処理を（先に）行う。
     // macOSのsafariも同様と推定して処理。違ったら教えてください。
-    const os = Util.estimateOS()?.toLowerCase();
-    const browser = Util.estimateBrowser()?.toLowerCase();
-    if (os === 'iphone' || os === 'ipad' || browser === 'safari') {
+    if (os == null) {
+      os = Util.estimateOS()?.toLowerCase();
+    }
+    if (browser == null) {
+      browser = Util.estimateBrowser()?.toLowerCase();
+    }
+    Log.write(`[PhraseManager.translatePhrase] os [${os}] browser [${browser}]`);
+    if (os?.includes('iphone') || os?.includes('ipad') || browser === 'safari') {
+      const phraseBak = phraseToPronounce;
       for (const iOSDictItem of PhraseManager.iOSSpeechDictionary) {
         phraseToPronounce = phraseToPronounce.replaceAll(
           iOSDictItem.source, 
           iOSDictItem.replace
         );
       }
+      Log.write(`[PhraseManager.translatePhrase] translated from "${phraseBak}" to "${phraseToPronounce}"`);
+    }
+
+    // 音声合成が対応しない語句の置き換え
+    for (const speechDictItem of PhraseManager.speechDictionary) {
+      phraseToPronounce = phraseToPronounce.replaceAll(
+        speechDictItem.source, 
+        speechDictItem.replace
+      );
     }
 
     return {
@@ -1458,6 +1460,15 @@ namespace PhraseManager {
     replace: string,
   };
 
+  /** iOSの音声合成で正しく読めない語句 */
+  export const iOSSpeechDictionary: SpeechDictionaryItem[] = [
+    {source: "感音難聴", replace: "感おん難聴"}, // 誤読「かんおとなんちょう」
+    {source: "感音", replace: "感おん"}, // 誤読「かんおとなんちょう」
+    {source: "伝音難聴", replace: "でん,おん,難聴"}, // 誤読「つておとなんちょう」。カンマがないと「でんおん」という音にならない。
+    {source: "フィッティング", replace: "フィッッティング"}, // 「ふぃてぃんぐ」になってしまう
+    {source: "失聴", replace: "しっっちょう"}, // 誤読「しちょう」
+  ];
+
   /** 音声合成で正しく読めない語句 */
   export const speechDictionary: SpeechDictionaryItem[] = [
     {source: "失聴者", replace: "しっちょうしゃ"}, // 誤読例「しつききもの」
@@ -1467,14 +1478,6 @@ namespace PhraseManager {
     {source: "読話", replace: "どくわ"}, // 誤読例「よみはなし」
     {source: "盲ろう者", replace: "もうろうしゃ"}, // 誤読例「もうろうもの」
     {source: "欠格条項", replace: "けっかく条項"}, // 誤読例「けつかくじょうこう」
-  ];
-  /** iOSで正しく読めない語句対応 */
-  export const iOSSpeechDictionary: SpeechDictionaryItem[] = [
-    {source: "感音難聴", replace: "かんおんなんちょう"}, // 誤読「かんおとなんちょう」
-    {source: "感音", replace: "かんおん"}, // 誤読「かんおとなんちょう」
-    {source: "伝音難聴", replace: "でんおんなんちょう"}, // 誤読「つておとなんちょう」
-    {source: "フィッティング", replace: "フィィッッティング"}, // 「ふぃてぃんぐ」になってしまう
-    // {source: "っ", replace: "っっ"}, // iOSは促音の大半が詰まる（一部詰まらない場合もあるが法則性がないので無条件で置き換える）
   ];
 
   // ========== ========== 出題フレーズそのもの ========== ==========
