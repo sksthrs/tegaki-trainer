@@ -235,8 +235,8 @@ input, button, select, option {
   right: 0;
 }
 
-#op-test-text-container {
-  font-size: min(5dvh, 5dvw);
+#op-test-text {
+  font-size: min(8dvh, 8dvw);
 }
 
 #op-test-tool button {

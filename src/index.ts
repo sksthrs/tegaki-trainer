@@ -648,7 +648,7 @@ class OpTest {
 
   private readonly numberArea = document.getElementById('op-test-text-number') as HTMLSpanElement;
 
-  private readonly phraseArea = document.getElementById('op-test-text') as HTMLSpanElement;
+  private readonly phraseArea = document.getElementById('op-test-text') as HTMLDivElement;
 
   private ixPhrase = 0;
 
@@ -1111,7 +1111,7 @@ namespace SoundManager {
     /** カウントダウン中のサウンド */
     counting: {
       audio: new Audio('./sounds/counting.mp3'),
-      volume: 5,
+      volume: 8,
       isLoop: true,
     },
     /** カウントダウン完了時サウンド */

@@ -983,7 +983,7 @@ var SoundManager;
         /** カウントダウン中のサウンド */
         counting: {
             audio: new Audio('./sounds/counting.mp3'),
-            volume: 5,
+            volume: 8,
             isLoop: true,
         },
         /** カウントダウン完了時サウンド */
