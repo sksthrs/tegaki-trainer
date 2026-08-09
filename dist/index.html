@@ -35,9 +35,14 @@
       </div>
     </div>
     <div id="description">
-      ボタンを押すと、ランダムな例文を音声で読み上げます。
-      <br>手書き表記例の長さに応じたカウントの後に表記例を示します。
-      <br><span id="description-minutes">-</span>分経つと、練習終了です。
+      <div id="description-text">
+        ボタンを押すと、ランダムな例文を音声で読み上げます。
+        <br>手書き表記例の長さに応じたカウントの後に表記例を示します。
+        <br><span id="description-minutes">-</span>分経つと、練習終了です。
+      </div>
+      <div id="description-tool">
+        <button id="open-op-test-dialog">音声テスト</button>
+      </div>
     </div>
     <div id="result">
       <p><span id="result-period">-</span>秒間で<span id="result-phrases">-</span>問、<span id="result-graphemes">-</span>字ほど書きました。</p>
@@ -55,16 +60,36 @@
     <div id="answer"></div>
     <!-- 効果音ラボ（https://soundeffect-lab.info/）のサウンドを利用させていただいてます -->
   </div>
+
+  <dialog id="op-test-dialog">
+    <div id="op-test-content">
+      <div id="op-test-dialog-control">
+        <button id="op-test-dialog-close">閉じる</button>
+      </div>
+      <div>音声合成テスト</div>
+      <div id="op-test-text-container">
+        <div id="op-test-text-number-container">[<span id="op-test-text-number"></span>] <span id="op-test-text"></span></div>
+      </div>
+      <div id="op-test-tool">
+        <button id="op-test-prev">前の問題</button>
+        <button id="op-test-play">音声を再生</button>
+        <button id="op-test-next">次の問題</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="log-dialog">
     <div id="log-content">
       <div id="log-text"></div>
       <button id="log-close">OK</button>
     </div>
   </dialog>
+
   <dialog id="not-available-dialog">
     <div id="in-app-browser-message">アプリ内ブラウザで開いているようです。標準のブラウザで開き直してください。</div>
     <div id="unavailable-browser-message">このブラウザでは音声が出せません。ChromeかSafariで開いてください。</div>
   </dialog>
+
   <script type="module" src="index.js?0_9_1"></script>
 </body>
 </html>

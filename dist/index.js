@@ -1,3 +1,5 @@
+/** 設定値を保存する際のキー文字列 */
+const STORAGE_KEY = "TegakiTrainer";
 document.addEventListener('DOMContentLoaded', (ev) => {
     // PWAとしての登録処理
     if ('serviceWorker' in navigator) {
@@ -33,8 +35,6 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         }
     }
     // ========== ========== 定数など ========== ==========
-    /** 設定値を保存する際のキー文字列 */
-    const STORAGE_KEY = "TegakiTrainer";
     /** 回答例を出すまでのタイマーカウントダウン中であることを示すクラス（スタイル切替用） */
     const CLASS_COUNTING = "counting";
     const CLASS_SMALL = "small";
@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     const phraseTokens = [];
     const logOpenButton = document.getElementById('log-open');
     const logCloseButton = document.getElementById('log-close');
+    const opTestOpenButton = document.getElementById('open-op-test-dialog');
     /** ネット接続が必要な音声につける説明文字列 */
     const SUFFIX_ONLINE = " (要ネット接続)";
     const voiceSelect = document.getElementById('voices');
@@ -126,7 +127,8 @@ document.addEventListener('DOMContentLoaded', (ev) => {
             opt.textContent = name;
             opt.dataset[DATASET_VOICE_NAME] = voice.name;
             selectElement.appendChild(opt);
-            const isMatchConfig = (appConfig.voice != null && voice.name === appConfig.voice);
+            const isMatchConfig = (ConfigManager.get().voice != null
+                && voice.name === ConfigManager.get().voice);
             if (isMatchConfig) {
                 selectElement.selectedIndex = index;
             }
@@ -139,17 +141,9 @@ document.addEventListener('DOMContentLoaded', (ev) => {
      */
     function speak(phrase) {
         cancelTimer();
-        // 末尾の「。」は無音なだけで無駄なので削除
-        let phrase2 = phrase.endsWith('。')
-            ? phrase.substring(0, phrase.length - 1)
-            : phrase;
-        // 音声合成が対応しない語句の置き換え
-        for (const speechDictItem of PhraseManager.speechDictionary) {
-            phrase2 = phrase2.replaceAll(speechDictItem.source, speechDictItem.replace);
-        }
         // 音声合成
-        SpeechManager.obj().speak(phrase2, {
-            voiceName: appConfig.voice,
+        SpeechManager.obj().speak(phrase, {
+            voiceName: ConfigManager.get().voice,
             onSpeakPrepare: () => { onSpeakPrepare(); },
             onSpeakStart: () => { onSpeakStart(); },
             onSpeakEnd: () => { onSpeakEnd(); },
@@ -163,7 +157,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     }
     function speakTest(phrase) {
         SpeechManager.obj().speak(phrase, {
-            voiceName: appConfig.voice,
+            voiceName: ConfigManager.get().voice,
             onSpeakPrepare: () => {
                 speakTestButton.disabled = true;
             },
@@ -183,8 +177,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
             const nameVoice = voiceSelect.selectedOptions.item(0)?.dataset[DATASET_VOICE_NAME];
             if (nameVoice == null)
                 return;
-            appConfig.voice = nameVoice;
-            saveConfig(appConfig);
+            ConfigManager.obj().update({ voice: nameVoice });
         });
         speakTestButton.addEventListener('click', _ => {
             speakTest('手書き練習ツールの読み上げ音声合成のテストです');
@@ -210,14 +203,16 @@ document.addEventListener('DOMContentLoaded', (ev) => {
                 case 'overtime':
                     eraseCountButton.blur();
                     eraseMaxSpeedButton.blur();
-                    appConfig.exerciseCount++;
+                    const configNow = ConfigManager.get();
+                    const configUpdate = {};
+                    configUpdate.exerciseCount = configNow.exerciseCount + 1;
                     appState.addScore(answerText.length);
                     appState.setNSeconds(timer.getCurrentSeconds());
-                    let isNewRecord = (appState.getSpeed() > appConfig.maxSpeed);
+                    let isNewRecord = (appState.getSpeed() > configNow.maxSpeed);
                     if (isNewRecord) {
-                        appConfig.maxSpeed = appState.getSpeed();
+                        configUpdate.maxSpeed = appState.getSpeed();
                     }
-                    saveConfig(appConfig);
+                    ConfigManager.obj().update(configUpdate);
                     appState.setNewState('finished');
                     updateStateDisplay();
                     timer.stop();
@@ -253,15 +248,13 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         });
         eraseCountButton.addEventListener('click', _ => {
             eraseCountButton.blur();
-            appConfig.exerciseCount = 0;
-            saveConfig(appConfig);
+            ConfigManager.obj().update({ exerciseCount: 0 });
             updateStateDisplay();
             updateResultDisplay();
         });
         eraseMaxSpeedButton.addEventListener('click', _ => {
             eraseMaxSpeedButton.blur();
-            appConfig.maxSpeed = 0;
-            saveConfig(appConfig);
+            ConfigManager.obj().update({ maxSpeed: 0 });
             updateStateDisplay();
             updateResultDisplay();
         });
@@ -270,6 +263,9 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         });
         logCloseButton.addEventListener('click', _ => {
             Log.closeLog();
+        });
+        opTestOpenButton.addEventListener('click', _ => {
+            OpTest.obj().open();
         });
     }
     function updateStateDisplay() {
@@ -281,24 +277,25 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         numPhraseArea.textContent = appState.getNPhrases().toString();
     }
     function updateResultDisplay() {
+        const config = ConfigManager.get();
         resultPeriod.textContent = appState.getNSeconds().toString();
         resultPhrases.textContent = appState.getNPhrases().toString();
         resultGraphemes.textContent = appState.getNGraphemes().toString();
-        exerciseCountBox.textContent = appConfig.exerciseCount.toString();
+        exerciseCountBox.textContent = config.exerciseCount.toString();
         resultSpeed.textContent = Math.round(appState.getSpeed()).toString();
-        maxSpeed.textContent = Math.round(appConfig.maxSpeed).toString();
+        maxSpeed.textContent = Math.round(config.maxSpeed).toString();
     }
     function preparePhrase() {
         SoundManager.prepareSounds();
-        const [phraseToShow, phraseToPronounce, phraseOriginal] = PhraseManager.getNextQuestion();
-        const tokens1 = PhraseManager.divideToken([{ text: phraseToShow, isAbbr: false, encircle: false }]);
+        const pData = PhraseManager.getNextQuestion();
+        const tokens1 = PhraseManager.divideToken([{ text: pData.displayPhrase, isAbbr: false, encircle: false }]);
         const tokens2 = PhraseManager.divideNormalTokens(tokens1);
         // phraseTokens を空にする
         while (phraseTokens.pop() != null) { }
         // phraseTokens に求めたトークン配列を設定する
         phraseTokens.push(...tokens2);
-        Log.write(`[nextButton.click] next phrase=${phraseOriginal} (show:${phraseToShow} , pronounce:${phraseToPronounce})`);
-        speak(phraseToPronounce);
+        Log.write(`[nextButton.click] next phrase=${pData.originalPhrase} (show:${pData.displayPhrase} , pronounce:${pData.pronouncePhrase})`);
+        speak(pData.pronouncePhrase);
     }
     /** 音声合成の準備開始時点での処理 */
     function onSpeakPrepare() {
@@ -385,29 +382,43 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         span.textContent = text;
         answerDisplay.append(span);
     }
-    let appConfig = loadConfig();
-    applyConfig(appConfig);
-    /** デフォルト設定を生成する */
-    function getConfigDefault() {
-        return {
-            voice: "",
-            exerciseCount: 0,
-            maxSpeed: 0,
-        };
+    // ========== ========== 初期処理 ========== ==========
+    // 音声一覧取得以外のイベントハンドラを設定
+    setEventHandlers();
+    // 起動時点で音声が取得できるなら、とりあえずそれを設定する
+    SpeechManager.obj().init((voices) => {
+        populateVoices(voiceSelect, voices);
+    });
+    appState.setNewState('init');
+    updateStateDisplay();
+});
+/**
+ * アプリケーション設定を入出力・保持するクラス。シングルトンなのでグローバルオブジェクトとして使う
+ */
+class ConfigManager {
+    // ========== ========== singleton ========== ==========
+    static obj() {
+        if (this._obj == null) {
+            this._obj = new ConfigManager();
+        }
+        return this._obj;
     }
-    /** 設定を保存する */
-    function saveConfig(config) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-        Log.write(`saved config : ${JSON.stringify(config)}`);
+    static _obj;
+    constructor() {
+        this._config = this.load() ?? this.makeDefault();
     }
-    /** 設定を取得する */
-    function loadConfig() {
+    static get() {
+        return { ...this.obj()._config };
+    }
+    // ========== ========== end of singleton ========== ==========
+    _config;
+    load() {
         try {
             const text = localStorage.getItem(STORAGE_KEY);
             if (text != null) {
                 const obj = JSON.parse(text);
                 Log.write(`[loadConfig] loaded config=${JSON.stringify(obj)}`);
-                const config = getConfigDefault();
+                const config = this.makeDefault();
                 if (obj?.voice != null && typeof obj?.voice === 'string') {
                     config.voice = obj.voice;
                 }
@@ -425,24 +436,22 @@ document.addEventListener('DOMContentLoaded', (ev) => {
             Log.write(`error in config-load : ${err}`);
         }
         Log.write('no config');
-        return getConfigDefault();
+        return undefined;
     }
-    /** 設定を適用する */
-    function applyConfig(config) {
-        if (config == null)
-            return;
-        // 設定には音声の選択だけがあり、これは音声一覧の更新時に反映されるため、ここでの処理はなし。
+    update(update) {
+        this._config = { ...this._config, ...update };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(this._config));
+        Log.write(`updated config item(s) : ${JSON.stringify(update)}`);
     }
-    // ========== ========== 初期処理 ========== ==========
-    // 音声一覧取得以外のイベントハンドラを設定
-    setEventHandlers();
-    // 起動時点で音声が取得できるなら、とりあえずそれを設定する
-    SpeechManager.obj().init((voices) => {
-        populateVoices(voiceSelect, voices);
-    });
-    appState.setNewState('init');
-    updateStateDisplay();
-});
+    makeDefault() {
+        /** デフォルト設定を生成する */
+        return {
+            voice: "",
+            exerciseCount: 0,
+            maxSpeed: 0,
+        };
+    }
+}
 class AppState {
     state = 'init';
     getState() { return this.state; }
@@ -490,6 +499,83 @@ class AppState {
     addScore(nGraphemes) {
         this.nPhrases++;
         this.nGraphemes += nGraphemes;
+    }
+}
+class OpTest {
+    // ========== ========== singleton ========== ==========
+    static obj() {
+        if (this._obj == null) {
+            this._obj = new OpTest();
+        }
+        return this._obj;
+    }
+    static _obj;
+    constructor() {
+        this.setEventHandlers();
+    }
+    // ========== ========== end of singleton ========== ==========
+    testDialog = document.getElementById('op-test-dialog');
+    closeButton = document.getElementById('op-test-dialog-close');
+    playButton = document.getElementById('op-test-play');
+    prevButton = document.getElementById('op-test-prev');
+    nextButton = document.getElementById('op-test-next');
+    numberArea = document.getElementById('op-test-text-number');
+    phraseArea = document.getElementById('op-test-text');
+    ixPhrase = 0;
+    // ========== ========== methods ========== ==========
+    open() {
+        this.testDialog.showModal();
+        this.updateDisplay();
+    }
+    updateDisplay() {
+        const phraseData = PhraseManager.getQuestionByIndex(this.ixPhrase);
+        this.numberArea.textContent = `${this.ixPhrase + 1}`;
+        this.phraseArea.textContent = `${phraseData?.displayPhrase}`;
+    }
+    setEventHandlers() {
+        this.closeButton.addEventListener('click', _ => {
+            this.testDialog.close();
+        });
+        this.nextButton.addEventListener('click', _ => {
+            this.ixPhrase++;
+            if (this.ixPhrase >= PhraseManager.getNumberOfPhrases()) {
+                this.ixPhrase = 0;
+            }
+            this.updateDisplay();
+        });
+        this.prevButton.addEventListener('click', _ => {
+            this.ixPhrase--;
+            if (this.ixPhrase < 0) {
+                this.ixPhrase = PhraseManager.getNumberOfPhrases() - 1;
+            }
+            this.updateDisplay();
+        });
+        this.playButton.addEventListener('click', _ => {
+            const phraseData = PhraseManager.getQuestionByIndex(this.ixPhrase);
+            if (phraseData == null) {
+                alert(`エラー：問題文(index=${this.ixPhrase}が取得できません`);
+                return;
+            }
+            SpeechManager.obj().cancel();
+            SpeechManager.obj().speak(phraseData.pronouncePhrase, {
+                voiceName: ConfigManager.get().voice,
+                onSpeakPrepare: () => { },
+                onSpeakStart: () => { },
+                onSpeakEnd: () => { },
+                onSpeakError: (ev) => {
+                    if (ev.error === 'interrupted' || ev.error === 'canceled') {
+                        // 意図的に止めた場合のエラーは、一応ログを出すだけで無視
+                        Log.write(`[speak] (no problem) speak-error name[${ev.name}] error[${ev.error}]`);
+                    }
+                    else {
+                        // 上記以外は想定外のエラーだろうと思うのでエラー表示
+                        Log.write(`[speak] speak-error name[${ev.name}] error[${ev.error}]`);
+                        // alertは通常は望ましくないが、例外的な状態なので許容範囲と判断した
+                        alert(`音声合成で異常が発生しました。音声を切り替えるか、Chromeなど他のブラウザでご利用ください。（エラーコード : ${ev.error}/${ev.name}）`);
+                    }
+                },
+            });
+        });
     }
 }
 var Log;
@@ -592,6 +678,157 @@ var Util;
         return null;
     }
     Util.detectInAppBrowser = detectInAppBrowser;
+    /**
+     * get platform string.
+     * (priority)
+     * 1. navigator.userAgentData.platform (like "Windows")
+     * 2. navigator.platform (like "MacIntel", "Win32", "Linux x86_64", "Linux armv81")
+     * @returns string representing running platform or undefined (when both navigator.userAgentData and navigator.platform are unavailable)
+     */
+    function getPlatformString() {
+        const uaplat = navigator.userAgentData?.platform;
+        if (uaplat != null) {
+            return uaplat;
+        }
+        const navplat = navigator.platform;
+        if (navplat != null) {
+            return navplat;
+        }
+        return undefined;
+    }
+    Util.getPlatformString = getPlatformString;
+    /**
+     * Estimate OS from user-agent string
+     */
+    function estimateOS() {
+        const ua_raw = getPlatformString() ?? navigator.userAgent;
+        const ua = ua_raw.toLowerCase();
+        // detect specific OS first
+        if (ua.includes('windows phone'))
+            return 'Windows Phone';
+        if (ua.includes('iphone'))
+            return 'iPhone';
+        if (ua.includes('ipad'))
+            return 'iPad';
+        if (ua.includes('CrOS'))
+            return 'ChromeOS';
+        if (ua.includes('appletv'))
+            return 'AppleTV';
+        if (ua.includes('kindle'))
+            return 'FireOS';
+        if (ua.includes('silk'))
+            return 'FireOS';
+        if (ua.includes('aftb'))
+            return 'FireTV';
+        if (ua.includes('nintendo'))
+            return 'Nintendo';
+        if (ua.includes('playstation'))
+            return 'PlayStation';
+        if (ua.includes('xbox'))
+            return 'XBox';
+        // detect generic OS names (used also for specific OS)
+        if (ua.includes('mac os'))
+            return 'macOS';
+        if (ua.includes('android'))
+            return 'Android';
+        if (ua.includes('windows'))
+            return 'Windows';
+        if (ua.includes('win32'))
+            return 'Windows';
+        if (ua.includes('freebsd'))
+            return 'FreeBSD';
+        if (ua.includes('linux'))
+            return 'Linux';
+        if (ua.includes('mac'))
+            return 'macOS';
+        // unidentifiable
+        return undefined;
+    }
+    Util.estimateOS = estimateOS;
+    /**
+     * Estimate browser from user-agent string
+     */
+    function estimateBrowser() {
+        const ua = navigator.userAgent.toLowerCase();
+        // not necessary browser information for some OS
+        if (ua.includes('windows phone'))
+            return '';
+        if (ua.includes('iphone'))
+            return '';
+        if (ua.includes('ipad'))
+            return '';
+        if (ua.includes('CrOS'))
+            return '';
+        if (ua.includes('appletv'))
+            return '';
+        if (ua.includes('kindle'))
+            return '';
+        if (ua.includes('silk'))
+            return '';
+        if (ua.includes('aftb'))
+            return '';
+        if (ua.includes('nintendo'))
+            return '';
+        if (ua.includes('playstation'))
+            return '';
+        if (ua.includes('xbox'))
+            return '';
+        // estimate browser (special cases)
+        if (ua.includes('samsung'))
+            return 'Samsung';
+        if (ua.includes('ucbrowser'))
+            return 'UC Browser';
+        if (ua.includes('qqbrowser'))
+            return 'QQ Browser';
+        if (ua.includes('yabrowser'))
+            return 'Yandex';
+        if (ua.includes('whale'))
+            return 'Whale';
+        if (ua.includes('puffin'))
+            return 'Puffin';
+        if (ua.includes('opr'))
+            return 'Opera';
+        if (ua.includes('coc_coc'))
+            return 'Cốc Cốc';
+        if (ua.includes('yahoo') || ua.includes('yjapp'))
+            return 'Yahoo';
+        if (ua.includes('fban') || ua.includes('fbios'))
+            return 'Facebook';
+        if (ua.includes('instagram'))
+            return 'Instagram';
+        if (ua.includes('line'))
+            return 'LINE';
+        if (ua.includes('bytedance') || ua.includes('tiktok'))
+            return 'TikTok'; // at the time of writing, their user-agent has 'BytedanceWebview' in iOS and android, but considers something happens in the future.
+        // estimate browser (semi-special cases)
+        if (ua.includes('crios'))
+            return 'Chrome(iOS)';
+        if (ua.includes('fxios'))
+            return 'Firefox(iOS)';
+        if (ua.includes('cfnetwork'))
+            return 'iOS app';
+        if (ua.includes('dalvik'))
+            return 'Android app';
+        if (ua.includes('wv)'))
+            return 'Android WebView';
+        // estimate browser (general cases)
+        if (ua.includes('trident') || ua.includes('msie'))
+            return 'IE';
+        if (ua.includes('edge'))
+            return 'Edge(old)';
+        if (ua.includes('edg'))
+            return 'Edge';
+        if (ua.includes('firefox'))
+            return 'Firefox';
+        // super-general names (order matters)
+        if (ua.includes('chrome'))
+            return 'Chrome'; // 'chrome' is included in most Browsers' userAgent
+        if (ua.includes('safari'))
+            return 'Safari'; // 'safari' is included in most Browsers' userAgent, includes Chrome
+        // unidentifiable
+        return undefined;
+    }
+    Util.estimateBrowser = estimateBrowser;
 })(Util || (Util = {}));
 /**
  * ――――――――――――――――――――――――――――――
@@ -734,6 +971,9 @@ class SpeechManager {
         }
         this.SS.speak(utterance);
     }
+    cancel() {
+        this.SS.cancel();
+    }
 }
 var SoundManager;
 (function (SoundManager) {
@@ -743,7 +983,7 @@ var SoundManager;
         /** カウントダウン中のサウンド */
         counting: {
             audio: new Audio('./sounds/counting.mp3'),
-            volume: 20,
+            volume: 5,
             isLoop: true,
         },
         /** カウントダウン完了時サウンド */
@@ -849,10 +1089,30 @@ var PhraseManager;
     /** ルビ抽出用の正規表現 */
     const RE_RUBY = /｜([^《]+)《([^》]+)》/g;
     /**
+     * 問題文の数を取得する。
+     */
+    function getNumberOfPhrases() {
+        return phrases.length;
+    }
+    PhraseManager.getNumberOfPhrases = getNumberOfPhrases;
+    /**
+     * インデックスを指定して問題文を取得する。
+     * @param index 問題文のインデックス
+     * @returns インデックスに対応する表示用文字列、発音用文字列、元文字列（対応する項目がない場合はundefined）
+     */
+    function getQuestionByIndex(index) {
+        const phrase = phrases.at(index);
+        if (phrase == null) {
+            return undefined;
+        }
+        return translatePhrase(phrase);
+    }
+    PhraseManager.getQuestionByIndex = getQuestionByIndex;
+    /**
      * 次の問題の表示用文字列と発音用文字列と元文字列を取得する。
      * 日本語は同音異義語が多いため、問題文にルビを指定できるようにしている。
      * 形式はカクヨムのものを基準にさらに限定して、"｜表示文字列《よみがな》" とした。
-     * @returns 表示用文字列、発音用文字列、元文字列のタプル
+     * @returns 表示用文字列、発音用文字列、元文字列
      */
     function getNextQuestion() {
         if (questionIds.length < 1) {
@@ -863,35 +1123,72 @@ var PhraseManager;
         if (nextPhrase == null) {
             throw new Error('(impossible case) questionId is null!');
         }
+        return translatePhrase(nextPhrase);
+    }
+    PhraseManager.getNextQuestion = getNextQuestion;
+    /**
+     * 問題の文字列を「表示用文字列、発音用文字列、元文字列」の形式に変換する。
+     * @param phrase 問題の元文字列
+     * @returns 表示用文字列、発音用文字列、元文字列
+     */
+    function translatePhrase(phrase) {
         // 読み仮名チェック
-        const matches = [...nextPhrase.matchAll(RE_RUBY)];
+        const matches = [...phrase.matchAll(RE_RUBY)];
         // 読み仮名表記を含まない場合は元の文字列が表記用かつ発音用になる
         if (matches.length < 1) {
-            return [nextPhrase, nextPhrase, nextPhrase];
+            return {
+                displayPhrase: phrase,
+                pronouncePhrase: phrase,
+                originalPhrase: phrase,
+            };
         }
         // 読み仮名表記を含む場合はそれぞれを構築する
         let phraseToShow = '';
-        let phraseToPronounce = '';
+        let phraseToPronounce_raw = '';
         let ixStart = 0;
         try {
             for (const match of matches) {
                 if (match.length !== 3)
-                    throw new Error(`エラー："${nextPhrase}"のindex${match.index}のmatchの長さが3ではなく${match.length}`);
-                const preMatch = nextPhrase.substring(ixStart, match.index);
+                    throw new Error(`エラー："${phrase}"のindex${match.index}のmatchの長さが3ではなく${match.length}`);
+                const preMatch = phrase.substring(ixStart, match.index);
                 phraseToShow += preMatch + match[1];
-                phraseToPronounce += preMatch + match[2];
+                phraseToPronounce_raw += preMatch + match[2];
                 ixStart = match.index + match[0].length;
             }
-            const post = nextPhrase.substring(ixStart);
+            const post = phrase.substring(ixStart);
             phraseToShow += post;
-            phraseToPronounce += post;
+            phraseToPronounce_raw += post;
         }
         catch (err) {
-            return [err?.message ?? nextPhrase, "エラーです", nextPhrase];
+            return {
+                displayPhrase: err?.message ?? phrase,
+                pronouncePhrase: "エラーです",
+                originalPhrase: phrase,
+            };
         }
-        return [phraseToShow, phraseToPronounce, nextPhrase];
+        // 末尾の「。」は無音なだけで無駄なので削除
+        let phraseToPronounce = phraseToPronounce_raw.endsWith('。')
+            ? phraseToPronounce_raw.substring(0, phraseToPronounce_raw.length - 1)
+            : phraseToPronounce_raw;
+        // 音声合成が対応しない語句の置き換え
+        for (const speechDictItem of PhraseManager.speechDictionary) {
+            phraseToPronounce = phraseToPronounce.replaceAll(speechDictItem.source, speechDictItem.replace);
+        }
+        // iOSのブラウザは読み上げ異常が多いので専用辞書による処理を行う。
+        // macOSのsafariも同様と推定して処理。違ったら教えてください。
+        const os = Util.estimateOS()?.toLowerCase();
+        const browser = Util.estimateBrowser()?.toLowerCase();
+        if (os === 'iphone' || os === 'ipad' || browser === 'safari') {
+            for (const iOSDictItem of PhraseManager.iOSSpeechDictionary) {
+                phraseToPronounce = phraseToPronounce.replaceAll(iOSDictItem.source, iOSDictItem.replace);
+            }
+        }
+        return {
+            displayPhrase: phraseToShow,
+            pronouncePhrase: phraseToPronounce,
+            originalPhrase: phrase,
+        };
     }
-    PhraseManager.getNextQuestion = getNextQuestion;
     function fillQuestionIdsRandomly() {
         if (questionIds.length > 0)
             return;
@@ -1001,6 +1298,14 @@ var PhraseManager;
         { source: "読話", replace: "どくわ" }, // 誤読例「よみはなし」
         { source: "盲ろう者", replace: "もうろうしゃ" }, // 誤読例「もうろうもの」
         { source: "欠格条項", replace: "けっかく条項" }, // 誤読例「けつかくじょうこう」
+    ];
+    /** iOSで正しく読めない語句対応 */
+    PhraseManager.iOSSpeechDictionary = [
+        { source: "感音難聴", replace: "かんおんなんちょう" }, // 誤読「かんおとなんちょう」
+        { source: "感音", replace: "かんおん" }, // 誤読「かんおとなんちょう」
+        { source: "伝音難聴", replace: "でんおんなんちょう" }, // 誤読「つておとなんちょう」
+        { source: "フィッティング", replace: "フィィッッティング" }, // 「ふぃてぃんぐ」になってしまう
+        // {source: "っ", replace: "っっ"}, // iOSは促音の大半が詰まる（一部詰まらない場合もあるが法則性がないので無条件で置き換える）
     ];
     // ========== ========== 出題フレーズそのもの ========== ==========
     /** 出題フレーズ。読みを明示的に示す場合は「｜表示文字列《読み》」という形式で入れること */

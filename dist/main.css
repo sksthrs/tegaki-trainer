@@ -119,8 +119,17 @@ input, button, select, option {
 
 #description {
   flex-grow: 0;
-  text-align: center;
+  min-width: 80%;
+}
+
+#description-text {
   line-height: 140%;
+  text-align: center;
+}
+
+#description-tool {
+  text-align: right;
+  font-size: 14px;
 }
 
 #operation {
@@ -201,6 +210,38 @@ input, button, select, option {
 
 .countdown {
   height: 10dvh;
+}
+
+#op-test-dialog {
+  width: 80%;
+  height: 40%;
+  padding: 0.5em;
+}
+
+#op-test-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 24px;
+}
+
+#op-test-dialog-control {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+#op-test-text-container {
+  font-size: min(5dvh, 5dvw);
+}
+
+#op-test-tool button {
+  margin-left: 0.5em;
+  margin-right: 0.5em;
 }
 
 #log-open {
