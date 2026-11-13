@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TegakiTrainer v0.9.6</title>
-  <link href="main.css?0_9_6" rel="stylesheet">
+  <title>TegakiTrainer v0.9.7</title>
+  <link href="main.css?0_9_7" rel="stylesheet">
   <meta name="description" content="TegakiTrainer - 手書き要約筆記練習ツール">
   <meta property="og:title" content="TegakiTrainer">
   <meta property="og:description" content="手書き要約筆記練習ツール">
@@ -21,7 +21,7 @@
 </head>
 <body>
   <div id="app">
-    <div id="app-version">v0.9.6</div>
+    <div id="app-version">v0.9.7</div>
     <div id="tool" class="flex-fixed flex-h-center">
       <button id="speak-test-button" class="flex-fixed">声 : </button>
       <select id="voices" class="flex-grow"></select>
@@ -80,7 +80,10 @@
   <dialog id="log-dialog">
     <div id="log-content">
       <div id="log-text"></div>
-      <button id="log-close">OK</button>
+      <div id="log-toolbar">
+        <button id="log-copy">コピー</button>
+        <button id="log-close">OK</button>
+      </div>
     </div>
   </dialog>
 
@@ -89,6 +92,6 @@
     <div id="unavailable-browser-message">このブラウザでは音声が出せません。ChromeかSafariで開いてください。</div>
   </dialog>
 
-  <script type="module" src="index.js?0_9_6"></script>
+  <script type="module" src="index.js?0_9_7"></script>
 </body>
 </html>

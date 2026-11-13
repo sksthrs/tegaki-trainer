@@ -279,6 +279,7 @@ button {
   flex-direction: column;
   justify-content: flex-start;
   align-items: stretch;
+  gap: 4px;
 }
 
 #log-text {
@@ -288,4 +289,16 @@ button {
   word-wrap: break-word;
   line-break: anywhere;
   white-space: break-spaces;
+}
+
+#log-toolbar {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+#log-toolbar button {
+  flex-grow: 1;
+  flex-shrink: 1;
+  margin: 1dvh;
 }

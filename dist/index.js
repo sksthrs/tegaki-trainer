@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', (ev) => {
     let timerId = -1;
     const phraseTokens = [];
     const logOpenButton = document.getElementById('log-open');
+    const logCopyButton = document.getElementById('log-copy');
     const logCloseButton = document.getElementById('log-close');
     const opTestOpenButton = document.getElementById('open-op-test-dialog');
     /** ネット接続が必要な音声につける説明文字列 */
@@ -270,6 +271,9 @@ document.addEventListener('DOMContentLoaded', (ev) => {
         });
         logOpenButton.addEventListener('click', _ => {
             Log.openLog();
+        });
+        logCopyButton.addEventListener('click', _ => {
+            Log.copyLog();
         });
         logCloseButton.addEventListener('click', _ => {
             Log.closeLog();
@@ -609,6 +613,11 @@ var Log;
         logDialog.showModal();
     }
     Log.openLog = openLog;
+    function copyLog() {
+        const logText = logArray.join('\n');
+        navigator.clipboard.writeText(logText);
+    }
+    Log.copyLog = copyLog;
     function closeLog() {
         logDialog.close();
     }

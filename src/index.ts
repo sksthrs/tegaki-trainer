@@ -101,6 +101,8 @@ document.addEventListener('DOMContentLoaded', (ev) => {
 
   const logOpenButton = document.getElementById('log-open') as HTMLButtonElement;
 
+  const logCopyButton = document.getElementById('log-copy') as HTMLButtonElement;
+
   const logCloseButton = document.getElementById('log-close') as HTMLButtonElement;
 
   const opTestOpenButton = document.getElementById('open-op-test-dialog') as HTMLButtonElement;
@@ -324,6 +326,10 @@ document.addEventListener('DOMContentLoaded', (ev) => {
 
     logOpenButton.addEventListener('click', _ => {
       Log.openLog();
+    });
+
+    logCopyButton.addEventListener('click', _ => {
+      Log.copyLog();
     });
 
     logCloseButton.addEventListener('click', _ => {
@@ -747,6 +753,11 @@ namespace Log {
   export function openLog(): void {
     logText.textContent = logArray.join('\n');
     logDialog.showModal();
+  }
+
+  export function copyLog(): void {
+    const logText = logArray.join('\n');
+    navigator.clipboard.writeText(logText);
   }
 
   export function closeLog(): void {
