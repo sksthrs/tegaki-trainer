@@ -153,6 +153,12 @@ document.addEventListener('DOMContentLoaded', (ev) => {
                 onSpeakEnd();
                 cancelTimer();
             },
+            onAnyError: (err) => {
+                Log.write(`[speak] some-error [${JSON.stringify(err)}]`);
+                answerDisplay.textContent = `異常が発生しました。音声を切り替えるか、Chromeなど他のブラウザでご利用ください。（エラーコード : ${JSON.stringify(err)}）`;
+                onSpeakEnd();
+                cancelTimer();
+            },
         });
     }
     function speakTest(phrase) {
@@ -167,6 +173,10 @@ document.addEventListener('DOMContentLoaded', (ev) => {
             },
             onSpeakError: (ev) => {
                 Log.write(`[speakTest] speak-error name[${ev.name}] error[${ev.error}]`);
+                speakTestButton.disabled = false;
+            },
+            onAnyError: (err) => {
+                Log.write(`[speakTest] some-error [${JSON.stringify(err)}]`);
                 speakTestButton.disabled = false;
             },
         });
@@ -574,6 +584,10 @@ class OpTest {
                         alert(`音声合成で異常が発生しました。音声を切り替えるか、Chromeなど他のブラウザでご利用ください。（エラーコード : ${ev.error}/${ev.name}）`);
                     }
                 },
+                onAnyError: (err) => {
+                    Log.write(`[speak] some-error [${JSON.stringify(err)}]`);
+                    alert(`異常が発生しました。音声を切り替えるか、Chromeなど他のブラウザでご利用ください。（エラーコード : ${JSON.stringify(err)}）`);
+                },
             });
         });
     }
@@ -585,8 +599,9 @@ var Log;
     const logDialog = document.getElementById('log-dialog');
     const logText = document.getElementById('log-text');
     function write(text) {
-        logArray.push(text);
-        console.log(text);
+        const textWithTime = `${(new Date()).toISOString()} ${text}`;
+        logArray.push(textWithTime);
+        console.log(textWithTime);
     }
     Log.write = write;
     function openLog() {
@@ -935,44 +950,108 @@ class SpeechManager {
     /**
      * 引数で指定した文字列を読み上げる
      * @param {string} phrase 読み上げる文字列
+     * @param options オプション
      */
     speak(phrase, options) {
-        Log.write(`[speak] phrase=[${phrase}] voiceName=[${options?.voiceName}]`);
+        Log.write(`[SpeechManager.speak] phrase=[${phrase}] voiceName=[${options?.voiceName}]`);
         let phrase2 = phrase.endsWith('。') ? phrase.substring(0, phrase.length - 1) : phrase;
         for (const speechDictItem of PhraseManager.speechDictionary) {
             phrase2 = phrase2.replaceAll(speechDictItem.source, speechDictItem.replace);
         }
-        const utterance = new SpeechSynthesisUtterance(phrase2);
+        let utterance;
+        try {
+            utterance = new SpeechSynthesisUtterance(phrase2);
+        }
+        catch (err) {
+            Log.write(`[SpeechManager.speak / utterance constructor] utterance construction failed : err=${JSON.stringify(err)}`);
+            try {
+                if (options?.onAnyError != null) {
+                    options.onAnyError(err);
+                }
+                if (options?.onSpeakEnd != null) {
+                    options.onSpeakEnd();
+                }
+                Log.write(`[SpeechManager.speak / utterance constructor] error handling done`);
+            }
+            catch (err) {
+                Log.write(`[SpeechManager.speak / utterance constructor] error handling failed err=${JSON.stringify(err)}`);
+            }
+            return;
+        }
         const voiceForNow = this.voices.find(v => v.name === options?.voiceName);
         if (voiceForNow != null) {
             utterance.voice = voiceForNow;
         }
-        Log.write(`[speak] actual speech : ${phrase2} by ${voiceForNow?.name ?? '(default)'}`);
+        Log.write(`[SpeechManager.speak] actual speech : ${phrase2} by ${voiceForNow?.name ?? '(default)'}`);
         utterance.addEventListener('start', _ev => {
             if (options?.onSpeakStart != null) {
-                options.onSpeakStart();
+                try {
+                    options.onSpeakStart();
+                    Log.write(`[SpeechManager.speak.onSpeakStart] speak starts (handler done)`);
+                }
+                catch (err) {
+                    Log.write(`[SpeechManager.speak.onSpeakStart] failed err=${JSON.stringify(err)}`);
+                }
+            }
+            else {
+                Log.write(`[SpeechManager.speak.onSpeakStart] speak starts (no handler)`);
             }
         });
         utterance.addEventListener('end', _ev => {
             if (options?.onSpeakEnd != null) {
-                options.onSpeakEnd();
+                try {
+                    options.onSpeakEnd();
+                    Log.write(`[SpeechManager.speak.onSpeakEnd] speak ended (handler done)`);
+                }
+                catch (err) {
+                    Log.write(`[SpeechManager.speak.onSpeakEnd] failed err=${JSON.stringify(err)}`);
+                }
+            }
+            else {
+                Log.write(`[SpeechManager.speak.onSpeakEnd] speak ended (no handler)`);
             }
         });
         utterance.addEventListener('error', ev => {
-            if (options?.onSpeakError != null) {
-                options.onSpeakError(ev);
+            try {
+                if (options?.onSpeakError != null) {
+                    options.onSpeakError(ev);
+                }
+                if (options?.onSpeakEnd != null) {
+                    options.onSpeakEnd();
+                }
+                Log.write(`[SpeechManager.speak.onSpeakError] speak error (handler done)`);
             }
-            if (options?.onSpeakEnd != null) {
-                options.onSpeakEnd();
+            catch (err) {
+                Log.write(`[SpeechManager.speak.onSpeakError] failed err=${JSON.stringify(err)}`);
             }
         });
         if (options?.onSpeakPrepare != null) {
-            options.onSpeakPrepare();
+            try {
+                options.onSpeakPrepare();
+                Log.write(`[SpeechManager.speak.onSpeakPrepare] speak prepared (handler done)`);
+            }
+            catch (err) {
+                Log.write(`[SpeechManager.speak.onSpeakPrepare] failed err=${JSON.stringify(err)}`);
+            }
         }
-        this.SS.speak(utterance);
+        else {
+            Log.write(`[SpeechManager.speak.onSpeakPrepare] speak prepared (no handler)`);
+        }
+        try {
+            this.SS.speak(utterance);
+            Log.write(`[SpeechManager.speak] done`);
+        }
+        catch (err) {
+            Log.write(`[SpeechManager.speak] failed err=${JSON.stringify(err)}`);
+        }
     }
     cancel() {
-        this.SS.cancel();
+        try {
+            this.SS.cancel();
+        }
+        catch (err) {
+            Log.write(`[SpeechManager.cancel] failed err=${JSON.stringify(err)}`);
+        }
     }
 }
 var SoundManager;
@@ -1012,68 +1091,118 @@ var SoundManager;
             return;
         // 音量初期化
         for (const sound of Object.values(_SOUNDS)) {
-            sound.audio.load();
-            sound.audio.loop = sound.isLoop;
-            sound.audio.play();
-            sound.audio.pause();
-            const volume = Math.min(1.0, Math.max(0.0, sound.volume / 100));
-            sound.audio.volume = volume;
-            Log.write(`[prepareSounds] sound[${sound.audio.baseURI}] volume=${volume}`);
+            try {
+                sound.audio.load();
+                sound.audio.loop = sound.isLoop;
+                sound.audio.play();
+                sound.audio.pause();
+                const volume = Math.min(1.0, Math.max(0.0, sound.volume / 100));
+                sound.audio.volume = volume;
+                Log.write(`[prepareSounds] sound[${sound.audio.baseURI}] volume=${volume}`);
+            }
+            catch (err) {
+                Log.write(`[prepareSounds] sound[${sound.audio.baseURI}] error=${JSON.stringify(err)}`);
+            }
         }
         initialized = true;
     }
     SoundManager.prepareSounds = prepareSounds;
     /** カウントダウン中サウンドの再生を開始する */
     function playCounting() {
-        _SOUNDS.counting.audio.currentTime = 0;
-        _SOUNDS.counting.audio.play();
+        try {
+            _SOUNDS.counting.audio.currentTime = 0;
+            _SOUNDS.counting.audio.play();
+        }
+        catch (err) {
+            Log.write(`[SoundManager.playCounting] failed error=${JSON.stringify(err)}`);
+        }
     }
     SoundManager.playCounting = playCounting;
     /** カウントダウン中サウンドの再生を停止する */
     function stopPlayCounting() {
-        _SOUNDS.counting.audio.pause();
+        try {
+            _SOUNDS.counting.audio.pause();
+        }
+        catch (err) {
+            Log.write(`[SoundManager.stopPlayCounting] failed error=${JSON.stringify(err)}`);
+        }
     }
     SoundManager.stopPlayCounting = stopPlayCounting;
     /** カウントダウン完了時サウンドの再生を開始する */
     function playUp() {
-        stopPlayCounting();
-        _SOUNDS.up.audio.currentTime = 0;
-        _SOUNDS.up.audio.play();
+        try {
+            stopPlayCounting();
+            _SOUNDS.up.audio.currentTime = 0;
+            _SOUNDS.up.audio.play();
+        }
+        catch (err) {
+            Log.write(`[SoundManager.playUp] failed error=${JSON.stringify(err)}`);
+        }
     }
     SoundManager.playUp = playUp;
     /** カウントダウン完了時サウンドの再生を停止する */
     function stopPlayUp() {
-        _SOUNDS.up.audio.pause();
+        try {
+            _SOUNDS.up.audio.pause();
+        }
+        catch (err) {
+            Log.write(`[SoundManager.stopPlayUp] failed error=${JSON.stringify(err)}`);
+        }
     }
     SoundManager.stopPlayUp = stopPlayUp;
     /** 練習終了サウンドの再生を開始する */
     function playFinish() {
-        stopPlayFinish();
-        _SOUNDS.finish.audio.currentTime = 0;
-        _SOUNDS.finish.audio.play();
+        try {
+            stopPlayFinish();
+            _SOUNDS.finish.audio.currentTime = 0;
+            _SOUNDS.finish.audio.play();
+        }
+        catch (err) {
+            Log.write(`[SoundManager.playFinish] failed error=${JSON.stringify(err)}`);
+        }
     }
     SoundManager.playFinish = playFinish;
     /** 練習終了サウンドの再生を停止する */
     function stopPlayFinish() {
-        _SOUNDS.finish.audio.pause();
+        try {
+            _SOUNDS.finish.audio.pause();
+        }
+        catch (err) {
+            Log.write(`[SoundManager.stopPlayFinish] failed error=${JSON.stringify(err)}`);
+        }
     }
     SoundManager.stopPlayFinish = stopPlayFinish;
     /** ハイスコア時サウンドの再生を開始する */
     function playNewRecord() {
-        stopPlayNewRecord();
-        _SOUNDS.newRecord.audio.currentTime = 0;
-        _SOUNDS.newRecord.audio.play();
+        try {
+            stopPlayNewRecord();
+            _SOUNDS.newRecord.audio.currentTime = 0;
+            _SOUNDS.newRecord.audio.play();
+        }
+        catch (err) {
+            Log.write(`[SoundManager.playNewRecord] failed error=${JSON.stringify(err)}`);
+        }
     }
     SoundManager.playNewRecord = playNewRecord;
     /** ハイスコア時サウンドの再生を停止する */
     function stopPlayNewRecord() {
-        _SOUNDS.newRecord.audio.pause();
+        try {
+            _SOUNDS.newRecord.audio.pause();
+        }
+        catch (err) {
+            Log.write(`[SoundManager.stopPlayNewRecord] failed error=${JSON.stringify(err)}`);
+        }
     }
     SoundManager.stopPlayNewRecord = stopPlayNewRecord;
     /** 全てのサウンドを停止する */
     function stopAllSounds() {
         for (const sound of Object.values(_SOUNDS)) {
-            sound.audio.pause();
+            try {
+                sound.audio.pause();
+            }
+            catch (err) {
+                Log.write(`[SoundManager.stopAllSounds] failed audio.src=${sound.audio.src} error=${JSON.stringify(err)}`);
+            }
         }
     }
     SoundManager.stopAllSounds = stopAllSounds;
